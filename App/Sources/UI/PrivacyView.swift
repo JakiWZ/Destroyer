@@ -19,11 +19,43 @@ struct PrivacyView: View {
                     }.card(padding: 4)
                     footer
                 }
+                wifiSection
             }
             .padding(28)
         }
         .techGridBackground()
-        .onAppear { if appState.privacyItems.isEmpty { appState.scanPrivacy() } }
+        .onAppear {
+            if appState.privacyItems.isEmpty { appState.scanPrivacy() }
+            if appState.wifiNetworks.isEmpty { appState.scanWiFi() }
+        }
+    }
+
+    @ViewBuilder
+    private var wifiSection: some View {
+        if !appState.wifiNetworks.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    TechTag(text: "saved wi-fi")
+                    Spacer()
+                    Text("admin").font(Theme.mono(8, weight: .bold)).foregroundStyle(Theme.warning)
+                        .padding(.horizontal, 5).padding(.vertical, 2).background(Capsule().fill(Theme.warning.opacity(0.15)))
+                }
+                Text("Reti Wi-Fi memorizzate. Rimuoverle richiede la password admin.")
+                    .font(.caption2).foregroundStyle(Theme.textTertiary)
+                VStack(spacing: 0) {
+                    ForEach(appState.wifiNetworks) { net in
+                        HStack(spacing: 10) {
+                            Image(systemName: "wifi").foregroundStyle(Theme.accentSolid)
+                            Text(net.ssid).font(.system(size: 13)).foregroundStyle(Theme.textPrimary)
+                            Spacer()
+                            Button("Dimentica") { appState.removeWiFi(net) }
+                                .font(Theme.mono(10)).foregroundStyle(Theme.warning).buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                    }
+                }.card(padding: 4)
+            }
+        }
     }
 
     private var header: some View {

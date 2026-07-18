@@ -15,13 +15,17 @@ struct SpaceView: View {
                     largeOld
                     duplicates
                     languageFiles
+                    universalBinaries
                     if selectedBytes > 0 { footer }
                 }
             }
             .padding(28)
         }
         .techGridBackground()
-        .onAppear { if appState.spaceEntries.isEmpty { appState.scanSpace() } }
+        .onAppear {
+            if appState.spaceEntries.isEmpty { appState.scanSpace() }
+            if appState.fatBinaries.isEmpty { appState.scanFatBinaries() }
+        }
     }
 
     private var header: some View {
@@ -46,6 +50,7 @@ struct SpaceView: View {
                 }
             }
             Text(appState.spaceRoot.path).font(Theme.mono(9)).foregroundStyle(Theme.textTertiary).lineLimit(1)
+            SpaceTreemap(entries: appState.spaceEntries) { appState.drillInto($0) }
             let total = max(1, appState.spaceEntries.reduce(0) { $0 + $1.sizeBytes })
             ForEach(appState.spaceEntries.prefix(12)) { e in
                 Button { appState.drillInto(e) } label: {
@@ -142,6 +147,52 @@ struct SpaceView: View {
                                 }
                             }
                         }.card(padding: 4)
+                    }
+                }
+            }
+        }
+    }
+
+    @State private var confirmThin = false
+    @ViewBuilder
+    private var universalBinaries: some View {
+        if !appState.fatBinaries.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    TechTag(text: "universal binaries")
+                    Spacer()
+                    Text("irreversibile").font(Theme.mono(8, weight: .bold)).foregroundStyle(Theme.danger)
+                        .padding(.horizontal, 5).padding(.vertical, 2).background(Capsule().fill(Theme.danger.opacity(0.15)))
+                }
+                Text("Rimuove l'architettura non nativa dalle app. NON reversibile e invalida la firma: l'app potrebbe non avviarsi.")
+                    .font(.caption2).foregroundStyle(Theme.textTertiary)
+                VStack(spacing: 0) {
+                    ForEach(appState.fatBinaries.prefix(15)) { b in
+                        HStack(spacing: 10) {
+                            Button { appState.toggleFat(b) } label: {
+                                Image(systemName: b.isSelected ? "checkmark.square.fill" : "square")
+                                    .foregroundStyle(b.isSelected ? Theme.danger : Theme.textTertiary)
+                            }.buttonStyle(.plain)
+                            Text(b.appName).font(.system(size: 12)).foregroundStyle(Theme.textPrimary).lineLimit(1)
+                            Text(b.archs.joined(separator: "+")).font(Theme.mono(8)).foregroundStyle(Theme.textTertiary)
+                            Spacer()
+                            Text(ByteSize.string(b.sizeBytes)).font(Theme.mono(11)).foregroundStyle(Theme.textSecondary)
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                    }
+                }.card(padding: 4)
+                if appState.fatBinaries.contains(where: \.isSelected) {
+                    HStack {
+                        Spacer()
+                        Button(role: .destructive) { confirmThin = true } label: {
+                            Label("Assottiglia (irreversibile)", systemImage: "exclamationmark.triangle")
+                        }.foregroundStyle(Theme.danger)
+                    }
+                    .confirmationDialog("Assottigliare i binari selezionati?", isPresented: $confirmThin, titleVisibility: .visible) {
+                        Button("Assottiglia (irreversibile)", role: .destructive) { appState.thinSelectedFat() }
+                        Button("Annulla", role: .cancel) {}
+                    } message: {
+                        Text("Operazione permanente. Invalida la firma delle app: alcune potrebbero non avviarsi più. Consigliato solo se sai cosa stai facendo.")
                     }
                 }
             }

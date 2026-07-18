@@ -24,14 +24,17 @@ public struct AppUpdate: Identifiable, Sendable {
     public let source: UpdateSource
     /// Dove aggiornare (pagina App Store / release), se disponibile.
     public let url: URL?
+    /// Token Homebrew per l'aggiornamento in-app (solo source == .homebrew).
+    public let token: String?
 
     public init(name: String, currentVersion: String, latestVersion: String,
-                source: UpdateSource, url: URL? = nil) {
+                source: UpdateSource, url: URL? = nil, token: String? = nil) {
         self.name = name
         self.currentVersion = currentVersion
         self.latestVersion = latestVersion
         self.source = source
         self.url = url
+        self.token = token
     }
 }
 
@@ -69,10 +72,15 @@ public struct AppUpdater {
         guard let json = runJSON([brew, "outdated", "--cask", "--greedy", "--json=v2"]),
               let casks = json["casks"] as? [[String: Any]] else { return (true, []) }
         let updates = casks.compactMap { c -> AppUpdate? in
-            guard let name = c["name"] as? String else { return nil }
+            // In outdated --json=v2 il token del cask è in "name" (stringa) o "token".
+            let token = (c["token"] as? String) ?? (c["name"] as? String)
+                ?? (c["name"] as? [String])?.first
+            guard let token else { return nil }
+            let displayName = (c["name"] as? [String])?.first ?? token
             let current = (c["installed_versions"] as? [String])?.first ?? "?"
             let latest = c["current_version"] as? String ?? "?"
-            return AppUpdate(name: name, currentVersion: current, latestVersion: latest, source: .homebrew)
+            return AppUpdate(name: displayName, currentVersion: current, latestVersion: latest,
+                             source: .homebrew, token: token)
         }
         return (true, updates)
     }
@@ -178,6 +186,20 @@ public struct AppUpdater {
             if x != y { return x > y }
         }
         return false
+    }
+
+    /// Aggiorna in-app un cask Homebrew (`brew upgrade --cask <token>`). Ritorna true se ok.
+    /// Funziona solo per le app gestite da Homebrew; per le altre si apre la pagina.
+    public func upgradeHomebrew(token: String) -> Bool {
+        guard let brew = ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"].first(where: { fileManager.fileExists(atPath: $0) }) else { return false }
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: brew)
+        p.arguments = ["upgrade", "--cask", token]
+        p.standardOutput = FileHandle.nullDevice
+        p.standardError = FileHandle.nullDevice
+        do { try p.run() } catch { return false }
+        p.waitUntilExit()
+        return p.terminationStatus == 0
     }
 
     private func runJSON(_ argv: [String]) -> [String: Any]? {

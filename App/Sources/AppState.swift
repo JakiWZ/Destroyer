@@ -593,6 +593,8 @@ final class AppState: ObservableObject {
     @Published var brewAvailable = true
     @Published var isCheckingApps = false
 
+    @Published var upgradingApp: String?
+
     func checkAppUpdates() {
         isCheckingApps = true
         let updater = appUpdater
@@ -603,6 +605,71 @@ final class AppState: ObservableObject {
                 self.brewAvailable = result.brewAvailable
                 self.isCheckingApps = false
             }
+        }
+    }
+
+    /// Aggiorna in-app (Homebrew) o apre la pagina (App Store/Internet).
+    func updateApp(_ update: AppUpdate) {
+        if update.source == .homebrew, let token = update.token {
+            upgradingApp = update.name
+            let updater = appUpdater
+            Task {
+                let ok = await Task.detached { updater.upgradeHomebrew(token: token) }.value
+                await MainActor.run {
+                    self.upgradingApp = nil
+                    if ok { self.appUpdates.removeAll { $0.id == update.id } }
+                }
+            }
+        } else if let url = update.url {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    // MARK: - Wi-Fi salvati
+    private let wifiScanner = WiFiScanner()
+    @Published var wifiNetworks: [WiFiNetwork] = []
+
+    func scanWiFi() {
+        let scanner = wifiScanner
+        Task {
+            let nets = await Task.detached { scanner.scan() }.value
+            await MainActor.run { self.wifiNetworks = nets }
+        }
+    }
+
+    func removeWiFi(_ net: WiFiNetwork) {
+        let scanner = wifiScanner
+        Task {
+            let ok = await Task.detached { scanner.remove([net.ssid]) }.value
+            await MainActor.run { if ok { self.wifiNetworks.removeAll { $0.id == net.id } } }
+        }
+    }
+
+    // MARK: - Binari universali
+    private let fatScanner = UniversalBinaryScanner()
+    @Published var fatBinaries: [FatBinary] = []
+    @Published var thinnedCount: Int?
+
+    func scanFatBinaries() {
+        let scanner = fatScanner
+        Task {
+            let bins = await Task.detached { scanner.scan() }.value
+            await MainActor.run { self.fatBinaries = bins }
+        }
+    }
+
+    func toggleFat(_ b: FatBinary) {
+        if let i = fatBinaries.firstIndex(where: { $0.id == b.id }) { fatBinaries[i].isSelected.toggle() }
+    }
+
+    /// Assottiglia (IRREVERSIBILE) i binari selezionati.
+    func thinSelectedFat() {
+        let urls = fatBinaries.filter(\.isSelected).map(\.url)
+        guard !urls.isEmpty else { return }
+        let scanner = fatScanner
+        Task {
+            let n = await Task.detached { scanner.thin(urls) }.value
+            await MainActor.run { self.thinnedCount = n; self.scanFatBinaries(); self.refreshStatus() }
         }
     }
 

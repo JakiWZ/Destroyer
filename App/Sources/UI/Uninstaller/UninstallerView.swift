@@ -51,20 +51,24 @@ struct UninstallerView: View {
                 }
                 VStack(spacing: 0) {
                     ForEach(appState.appUpdates) { u in
-                        Button { if let url = u.url { NSWorkspace.shared.open(url) } } label: {
-                            HStack(spacing: 10) {
-                                Image(systemName: "arrow.up.circle.fill").foregroundStyle(Theme.accentSolid)
-                                Text(u.name).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.textPrimary)
-                                Text(u.source.label).font(Theme.mono(8, weight: .bold)).foregroundStyle(Theme.textSecondary)
-                                    .padding(.horizontal, 5).padding(.vertical, 2)
-                                    .background(Capsule().fill(Theme.strokeStrong))
-                                Spacer()
-                                Text("\(u.currentVersion) → \(u.latestVersion)")
-                                    .font(Theme.mono(10)).foregroundStyle(Theme.textSecondary)
+                        HStack(spacing: 10) {
+                            Image(systemName: "arrow.up.circle.fill").foregroundStyle(Theme.accentSolid)
+                            Text(u.name).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.textPrimary)
+                            Text(u.source.label).font(Theme.mono(8, weight: .bold)).foregroundStyle(Theme.textSecondary)
+                                .padding(.horizontal, 5).padding(.vertical, 2)
+                                .background(Capsule().fill(Theme.strokeStrong))
+                            Spacer()
+                            Text("\(u.currentVersion) → \(u.latestVersion)")
+                                .font(Theme.mono(10)).foregroundStyle(Theme.textSecondary)
+                            if appState.upgradingApp == u.name {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Button(u.source == .homebrew ? "Aggiorna" : "Apri") { appState.updateApp(u) }
+                                    .font(Theme.mono(10, weight: .semibold)).foregroundStyle(Theme.accentSolid)
+                                    .buttonStyle(.plain)
                             }
-                            .padding(.horizontal, 12).padding(.vertical, 8)
-                            .contentShape(Rectangle())
-                        }.buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 8)
                     }
                 }
                 .card(padding: 4)

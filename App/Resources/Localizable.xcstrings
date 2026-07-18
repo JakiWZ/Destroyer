@@ -62,6 +62,16 @@
     "Ignora" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Ignore" } } } },
     "Esamina" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Review" } } } },
     "delicato" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "sensitive" } } } },
-    "Metti in quarantena" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Quarantine" } } } }
+    "Metti in quarantena" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Quarantine" } } } },
+    "Aggiorna" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Update" } } } },
+    "Apri" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Open" } } } },
+    "Dimentica" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Forget" } } } },
+    "irreversibile" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "irreversible" } } } },
+    "admin" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "admin" } } } },
+    "Assottiglia (irreversibile)" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Thin (irreversible)" } } } },
+    "%lld firme XProtect caricate" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld XProtect signatures loaded" } } } },
+    "%lld elementi selezionati" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld items selected" } } } },
+    "%@ selezionati" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "%@ selected" } } } },
+    "Reti Wi-Fi memorizzate. Rimuoverle richiede la password admin." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Saved Wi-Fi networks. Removing them requires the admin password." } } } }
   }
 }
