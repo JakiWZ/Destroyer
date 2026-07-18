@@ -705,11 +705,29 @@ final class AppState: ObservableObject {
         applySchedule()
     }
 
+    private let backgroundScheduler = BackgroundScheduler()
+
     private func applySchedule() {
         scheduleTimer?.invalidate()
-        guard scheduleMinutes > 0 else { return }
-        scheduleTimer = Timer.scheduledTimer(withTimeInterval: Double(scheduleMinutes) * 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.smartScan() }
+        // Timer in-app (mentre l'app è aperta).
+        if scheduleMinutes > 0 {
+            scheduleTimer = Timer.scheduledTimer(withTimeInterval: Double(scheduleMinutes) * 60, repeats: true) { [weak self] _ in
+                Task { @MainActor in self?.smartScan() }
+            }
+        }
+        // LaunchAgent in background (anche ad app chiusa).
+        let scheduler = backgroundScheduler
+        let minutes = scheduleMinutes
+        Task.detached {
+            if minutes > 0 { scheduler.install(intervalSeconds: minutes * 60) }
+            else { scheduler.remove() }
+        }
+    }
+
+    /// Se l'app è stata avviata dallo scheduler, esegue subito uno Smart Scan.
+    func handleLaunchArguments() {
+        if CommandLine.arguments.contains("--scheduled-scan") {
+            smartScan()
         }
     }
 

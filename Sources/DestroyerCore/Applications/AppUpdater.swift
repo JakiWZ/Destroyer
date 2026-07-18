@@ -156,7 +156,10 @@ public struct AppUpdater {
             + matches(in: xml, pattern: "<sparkle:shortVersionString>([^<]+)</sparkle:shortVersionString>")
         guard let latest = versions.max(by: { isNewer($1, than: $0) }),
               isNewer(latest, than: current) else { return nil }
-        return AppUpdate(name: name, currentVersion: current, latestVersion: latest, source: .sparkle, url: feed)
+        // URL dell'installer (enclosure) se presente, così "Apri" scarica il pacchetto.
+        let enclosure = matches(in: xml, pattern: "<enclosure[^>]*url=\"([^\"]+)\"").first
+            .flatMap(URL.init) ?? feed
+        return AppUpdate(name: name, currentVersion: current, latestVersion: latest, source: .sparkle, url: enclosure)
     }
 
     // MARK: - Helper

@@ -143,7 +143,7 @@ struct ProtectionView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Scansione programmata").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
-                Text("Smart Scan automatico mentre l'app è aperta.").font(.caption).foregroundStyle(Theme.textSecondary)
+                Text("Smart Scan automatico, anche ad app chiusa (LaunchAgent utente).").font(.caption).foregroundStyle(Theme.textSecondary)
                 Picker("", selection: Binding(get: { appState.scheduleMinutes }, set: { appState.setSchedule(minutes: $0) })) {
                     Text("Off").tag(0)
                     Text("Ogni 30 min").tag(30)

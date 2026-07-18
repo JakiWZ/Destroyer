@@ -72,6 +72,20 @@
     "%lld firme XProtect caricate" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld XProtect signatures loaded" } } } },
     "%lld elementi selezionati" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld items selected" } } } },
     "%@ selezionati" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "%@ selected" } } } },
-    "Reti Wi-Fi memorizzate. Rimuoverle richiede la password admin." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Saved Wi-Fi networks. Removing them requires the admin password." } } } }
+    "Reti Wi-Fi memorizzate. Rimuoverle richiede la password admin." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Saved Wi-Fi networks. Removing them requires the admin password." } } } },
+    "Mappa del disco, file grandi o vecchi e duplicati nella tua cartella utente." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Disk map, large or old files and duplicates in your home folder." } } } },
+    "Nessun file grande o vecchio." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "No large or old files." } } } },
+    "Nessun duplicato trovato." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "No duplicates found." } } } },
+    "Elementi che partono automaticamente all'avvio. Rimuovili per alleggerire il Mac." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Items that launch automatically at startup. Remove them to lighten your Mac." } } } },
+    "Cache, cookie e cronologia dei browser. Vengono spostati nel Cestino (reversibile)." : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Browser caches, cookies and history. Moved to the Trash (reversible)." } } } },
+    "Scegli la profondità di scansione" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose the scan depth" } } } },
+    "Nessuna minaccia rilevata" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "No threats detected" } } } },
+    "Protezione in tempo reale" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Real-time protection" } } } },
+    "Monitoraggio leggero" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Lightweight monitoring" } } } },
+    "Endpoint Security" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Endpoint Security" } } } },
+    "Scansione programmata" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Scheduled scan" } } } },
+    "Disinstalla completamente" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Uninstall completely" } } } },
+    "File di lingua" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Language files" } } } },
+    "Binari universali" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Universal binaries" } } } }
   }
 }

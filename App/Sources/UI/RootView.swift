@@ -36,6 +36,7 @@ struct RootView: View {
             appState.checkForUpdates()
             appState.restoreRealtime()
             appState.restoreSchedule()
+            appState.handleLaunchArguments()
         }
     }
 
