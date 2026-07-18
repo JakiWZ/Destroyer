@@ -1,0 +1,17 @@
+# Build output
+build/
+.build/
+DerivedData/
+
+# Xcode project è GENERATO da project.yml via XcodeGen — non versionarlo
+Destroyer.xcodeproj/
+
+# macOS
+.DS_Store
+
+# Xcode user data
+xcuserdata/
+*.xcuserstate
+
+# Screenshot temporanei
+scratchshot_*.png
