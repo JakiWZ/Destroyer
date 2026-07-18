@@ -44,22 +44,30 @@ struct UninstallerView: View {
     private var updatesSection: some View {
         if !appState.appUpdates.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                TechTag(text: "app updater")
+                HStack {
+                    TechTag(text: "app updater")
+                    Spacer()
+                    Text("\(appState.appUpdates.count) aggiornamenti").font(Theme.mono(9)).foregroundStyle(Theme.textTertiary)
+                }
                 VStack(spacing: 0) {
                     ForEach(appState.appUpdates) { u in
-                        HStack(spacing: 10) {
-                            Image(systemName: "arrow.up.circle.fill").foregroundStyle(Theme.accentSolid)
-                            Text(u.name).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.textPrimary)
-                            Spacer()
-                            Text("\(u.currentVersion) → \(u.latestVersion)")
-                                .font(Theme.mono(10)).foregroundStyle(Theme.textSecondary)
-                        }
-                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        Button { if let url = u.url { NSWorkspace.shared.open(url) } } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "arrow.up.circle.fill").foregroundStyle(Theme.accentSolid)
+                                Text(u.name).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.textPrimary)
+                                Text(u.source.label).font(Theme.mono(8, weight: .bold)).foregroundStyle(Theme.textSecondary)
+                                    .padding(.horizontal, 5).padding(.vertical, 2)
+                                    .background(Capsule().fill(Theme.strokeStrong))
+                                Spacer()
+                                Text("\(u.currentVersion) → \(u.latestVersion)")
+                                    .font(Theme.mono(10)).foregroundStyle(Theme.textSecondary)
+                            }
+                            .padding(.horizontal, 12).padding(.vertical, 8)
+                            .contentShape(Rectangle())
+                        }.buttonStyle(.plain)
                     }
                 }
                 .card(padding: 4)
-                Text("Aggiorna con: brew upgrade --cask")
-                    .font(Theme.mono(9)).foregroundStyle(Theme.textTertiary)
             }
         }
     }

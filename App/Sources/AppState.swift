@@ -557,7 +557,7 @@ final class AppState: ObservableObject {
         isCheckingApps = true
         let updater = appUpdater
         Task {
-            let result = await Task.detached { updater.check() }.value
+            let result = await updater.checkAll()
             await MainActor.run {
                 self.appUpdates = result.updates
                 self.brewAvailable = result.brewAvailable
