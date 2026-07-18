@@ -8,6 +8,8 @@ struct PerformanceView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header
+                maintenanceCard
+                TechTag(text: "startup items")
                 if appState.loginItems.isEmpty {
                     Text("Nessun elemento di avvio trovato.")
                         .font(.caption).foregroundStyle(Theme.textTertiary)
@@ -31,6 +33,42 @@ struct PerformanceView: View {
             Text("Elementi che partono automaticamente all'avvio. Rimuovili per alleggerire il Mac.")
                 .foregroundStyle(Theme.textSecondary)
         }
+    }
+
+    @State private var selectedTasks: Set<Maintenance.Task> = Set(Maintenance.Task.allCases)
+
+    private var maintenanceCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            TechTag(text: "maintenance")
+            ForEach(Maintenance.Task.allCases) { task in
+                HStack(spacing: 10) {
+                    Button {
+                        if selectedTasks.contains(task) { selectedTasks.remove(task) } else { selectedTasks.insert(task) }
+                    } label: {
+                        Image(systemName: selectedTasks.contains(task) ? "checkmark.square.fill" : "square")
+                            .foregroundStyle(selectedTasks.contains(task) ? Theme.accentSolid : Theme.textTertiary)
+                    }.buttonStyle(.plain)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(task.title).font(.system(size: 13)).foregroundStyle(Theme.textPrimary)
+                        Text(task.detail).font(.caption2).foregroundStyle(Theme.textTertiary)
+                    }
+                    Spacer()
+                }
+            }
+            HStack {
+                if let err = appState.maintenanceError {
+                    Label(err, systemImage: "exclamationmark.triangle").font(.caption2).foregroundStyle(Theme.warning)
+                } else if !appState.maintenanceDone.isEmpty {
+                    Label("Completato", systemImage: "checkmark.circle").font(.caption2).foregroundStyle(Theme.ok)
+                }
+                Spacer()
+                AccentButton(title: "Esegui (admin)", systemImage: "wrench.and.screwdriver") {
+                    appState.runMaintenance(Array(selectedTasks))
+                }
+                .opacity(selectedTasks.isEmpty ? 0.5 : 1).disabled(selectedTasks.isEmpty)
+            }
+        }
+        .card(padding: 16)
     }
 
     private func itemRow(_ item: LoginItem) -> some View {

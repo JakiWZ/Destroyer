@@ -11,5 +11,11 @@ struct DestroyerApp: App {
                 .frame(minWidth: 820, minHeight: 560)
         }
         .windowStyle(.titleBar)
+
+        MenuBarExtra("Destroyer", systemImage: "bolt.fill") {
+            MenuBarView()
+                .environmentObject(appState)
+        }
+        .menuBarExtraStyle(.window)
     }
 }

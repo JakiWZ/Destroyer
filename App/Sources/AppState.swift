@@ -117,6 +117,10 @@ final class AppState: ObservableObject {
     func restoreRealtime() {
         realtimeMonitor.onThreat = { [weak self] finding in
             self?.realtimeAlert = finding
+            NotificationService.notifyThreat(
+                title: "Destroyer: elemento sospetto",
+                body: finding.family ?? finding.itemURL.lastPathComponent
+            )
         }
         if UserDefaults.standard.bool(forKey: Self.realtimeKey) {
             setRealtime(true)
@@ -126,7 +130,12 @@ final class AppState: ObservableObject {
     func setRealtime(_ on: Bool) {
         realtimeEnabled = on
         UserDefaults.standard.set(on, forKey: Self.realtimeKey)
-        if on { realtimeMonitor.start() } else { realtimeMonitor.stop() }
+        if on {
+            NotificationService.requestAuthorization()
+            realtimeMonitor.start()
+        } else {
+            realtimeMonitor.stop()
+        }
     }
 
     func dismissRealtimeAlert() { realtimeAlert = nil }
@@ -445,6 +454,63 @@ final class AppState: ObservableObject {
         Task {
             let n = await Task.detached { emptier.empty() }.value
             await MainActor.run { self.emptiedCount = n; self.refreshStatus() }
+        }
+    }
+
+    // MARK: - Smart Scan (aggregato + punteggio salute)
+    struct SmartResult {
+        let healthScore: Int          // 0–100
+        let junkBytes: Int64
+        let threatCount: Int
+        let startupCount: Int
+    }
+    @Published var smartResult: SmartResult?
+    @Published var isSmartScanning = false
+
+    func smartScan() {
+        isSmartScanning = true
+        smartResult = nil
+        let junkS = junkScanner, malwareS = malwareScanner, loginS = loginScanner
+        Task {
+            let junk = await Task.detached { junkS.scan() }.value
+            let threats = await Task.detached { malwareS.scan(mode: .quick) }.value
+            let startups = await Task.detached { loginS.scan() }.value
+            let junkBytes = junk.reduce(0) { $0 + $1.totalBytes }
+            let highThreats = threats.filter { $0.severity >= .medium }.count
+            // Punteggio: parte da 100, penalità per minacce e junk.
+            var score = 100
+            score -= highThreats * 15
+            if junkBytes > 5 * 1024 * 1024 * 1024 { score -= 15 }
+            else if junkBytes > 1 * 1024 * 1024 * 1024 { score -= 8 }
+            score = max(0, min(100, score))
+            await MainActor.run {
+                self.smartResult = SmartResult(
+                    healthScore: score, junkBytes: junkBytes,
+                    threatCount: threats.count, startupCount: startups.count
+                )
+                self.junkGroups = junk
+                self.findings = threats
+                self.loginItems = startups
+                self.isSmartScanning = false
+            }
+        }
+    }
+
+    // MARK: - Manutenzione
+    @Published var maintenanceDone: [Maintenance.Task] = []
+    @Published var maintenanceError: String?
+
+    func runMaintenance(_ tasks: [Maintenance.Task]) {
+        let maint = Maintenance()
+        Task {
+            do {
+                try await Task.detached { try maint.run(tasks) }.value
+                await MainActor.run { self.maintenanceDone = tasks; self.maintenanceError = nil; self.refreshStatus() }
+            } catch Maintenance.RunError.authorizationDenied {
+                await MainActor.run { self.maintenanceError = "Autorizzazione negata" }
+            } catch {
+                await MainActor.run { self.maintenanceError = "\(error)" }
+            }
         }
     }
 

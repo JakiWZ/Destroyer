@@ -7,6 +7,7 @@ struct DashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 header
+                smartScanCard
                 heroCard
                 statRow
             }
@@ -22,6 +23,46 @@ struct DashboardView: View {
                 .font(.system(size: 28, weight: .bold))
                 .foregroundStyle(Theme.textPrimary)
         }
+    }
+
+    private var smartScanCard: some View {
+        HStack(spacing: 24) {
+            if let r = appState.smartResult {
+                GaugeRing(value: Double(r.healthScore) / 100, lineWidth: 14) {
+                    VStack(spacing: 0) {
+                        Text("\(r.healthScore)").font(Theme.mono(30, weight: .bold)).foregroundStyle(Theme.textPrimary)
+                        Text("salute").font(.caption2).foregroundStyle(Theme.textSecondary)
+                    }
+                }.frame(width: 120, height: 120)
+                VStack(alignment: .leading, spacing: 6) {
+                    TechTag(text: "smart scan")
+                    Text(smartLabel(r.healthScore)).font(.headline).foregroundStyle(Theme.textPrimary)
+                    Text("Junk \(ByteSize.string(r.junkBytes)) · \(r.threatCount) minacce · \(r.startupCount) avvii")
+                        .font(Theme.mono(11)).foregroundStyle(Theme.textSecondary)
+                    GhostButton(title: "Riesegui", systemImage: "arrow.clockwise") { appState.smartScan() }
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    TechTag(text: "smart scan")
+                    Text("Un click: Pulizia · Protezione · Prestazioni")
+                        .font(.headline).foregroundStyle(Theme.textPrimary)
+                    Text("Analisi rapida con punteggio di salute complessivo.")
+                        .font(.subheadline).foregroundStyle(Theme.textSecondary)
+                }
+                Spacer()
+                if appState.isSmartScanning {
+                    ProgressView().controlSize(.large)
+                } else {
+                    AccentButton(title: "Smart Scan", systemImage: "sparkles.rectangle.stack") { appState.smartScan() }
+                }
+            }
+            Spacer()
+        }
+        .card(padding: 22, highlighted: true)
+    }
+
+    private func smartLabel(_ s: Int) -> String {
+        s >= 85 ? "Il tuo Mac è in ottima forma" : (s >= 60 ? "Qualche intervento consigliato" : "Attenzione: interventi necessari")
     }
 
     private var heroCard: some View {
