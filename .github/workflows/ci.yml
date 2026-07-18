@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+
+jobs:
+  verify:
+    name: Verifica core (destroyer-verify)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Versione Swift
+        run: swift --version
+
+      - name: Esegui i controlli del core
+        run: swift run destroyer-verify
+
+  build:
+    name: Build GUI (Xcode)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installa XcodeGen
+        run: brew install xcodegen
+
+      - name: Genera il progetto Xcode
+        run: xcodegen generate
+
+      - name: Build (Debug)
+        run: |
+          xcodebuild \
+            -project Destroyer.xcodeproj \
+            -scheme Destroyer \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            build
