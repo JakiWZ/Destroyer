@@ -27,6 +27,7 @@ struct RootView: View {
             appState.refreshStatus()
             appState.loadInstalledApps()
             appState.startTrashWatcher()
+            appState.checkForUpdates()
         }
     }
 
@@ -106,12 +107,30 @@ struct RootView: View {
         }
     }
 
+    @ViewBuilder
     private var footer: some View {
-        HStack(spacing: 6) {
-            Circle().fill(Theme.ok).frame(width: 7, height: 7)
-            Text("Sistema pronto")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.textSecondary)
+        if let update = appState.updateResult, update.isNewer {
+            Button {
+                NSWorkspace.shared.open(update.releaseURL)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.down.circle.fill").foregroundStyle(Theme.accentSolid)
+                    Text("Aggiornamento \(update.latestVersion)")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Aggiornamento disponibile: versione \(update.latestVersion)")
+        } else {
+            HStack(spacing: 6) {
+                Circle().fill(Theme.ok).frame(width: 7, height: 7)
+                Text("Sistema pronto v\(AppState.appVersion)")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            .accessibilityElement()
+            .accessibilityLabel("Sistema pronto, versione \(AppState.appVersion)")
         }
     }
 

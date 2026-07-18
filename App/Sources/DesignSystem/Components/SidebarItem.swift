@@ -42,6 +42,9 @@ struct SidebarItem: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
+        .accessibilityLabel(title)
+        .accessibilityHint(isAvailable ? "" : "Modulo non ancora disponibile")
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 
     private var iconColor: Color {

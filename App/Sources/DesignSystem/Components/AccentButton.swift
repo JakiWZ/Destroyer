@@ -29,6 +29,8 @@ struct AccentButton: View {
         .scaleEffect(hovering ? 1.02 : 1)
         .animation(.easeOut(duration: 0.15), value: hovering)
         .onHover { hovering = $0 }
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -59,5 +61,7 @@ struct GhostButton: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(.isButton)
     }
 }

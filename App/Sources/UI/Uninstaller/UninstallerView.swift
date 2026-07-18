@@ -66,6 +66,8 @@ struct UninstallerView: View {
         .frame(height: 150)
         .animation(.easeOut(duration: 0.15), value: isTargeted)
         .onDrop(of: [.fileURL], isTargeted: $isTargeted) { handleDrop($0) }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Area di trascinamento: rilascia qui un'app per disinstallarla")
     }
 
     private var appListHeader: some View {
@@ -140,5 +142,8 @@ struct AppCard: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Disinstalla \(app.name), \(ByteSize.string(app.sizeBytes))")
+        .accessibilityAddTraits(.isButton)
     }
 }

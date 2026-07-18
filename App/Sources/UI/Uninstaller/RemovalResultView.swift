@@ -34,7 +34,14 @@ struct RemovalResultView: View {
                 failuresList
             }
 
-            AccentButton(title: "Fatto", systemImage: "checkmark") { appState.reset() }
+            HStack(spacing: 12) {
+                if summary.canUndo {
+                    GhostButton(title: "Annulla rimozione", systemImage: "arrow.uturn.backward") {
+                        appState.undoLastRemoval()
+                    }
+                }
+                AccentButton(title: "Fatto", systemImage: "checkmark") { appState.reset() }
+            }
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

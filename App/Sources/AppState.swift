@@ -150,7 +150,12 @@ final class AppState: ObservableObject {
         let failedCount: Int
         let reclaimedBytes: Int64
         let failures: [RemovalOutcome.Failure]
+        let moves: [RemovalOutcome.Move]
+        var canUndo: Bool { !moves.isEmpty }
     }
+
+    /// Numero di elementi ripristinati dall'ultimo Undo (per messaggio UI).
+    @Published var undoneCount: Int?
 
     /// Ricontrolla il permesso Full Disk Access (chiamato in polling dal gate).
     func recheckAccess() {
@@ -250,7 +255,8 @@ final class AppState: ObservableObject {
                     trashedCount: outcome.totalTrashed,
                     failedCount: outcome.failed.count,
                     reclaimedBytes: reclaimable,
-                    failures: outcome.failed
+                    failures: outcome.failed,
+                    moves: outcome.moves
                 )
                 self.scan = nil
                 self.isRemoving = false
@@ -260,8 +266,45 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Annulla l'ultima rimozione riportando i file dal Cestino alla posizione originale.
+    func undoLastRemoval() {
+        guard let summary = lastOutcome, summary.canUndo else { return }
+        let moves = summary.moves
+        let trash = self.trash
+        Task {
+            let restored = await Task.detached { trash.undo(moves) }.value
+            await MainActor.run {
+                self.undoneCount = restored
+                self.lastOutcome = nil
+                self.refreshStatus()
+                self.loadInstalledApps()
+            }
+        }
+    }
+
     func reset() {
         scan = nil
         lastOutcome = nil
+        undoneCount = nil
+    }
+
+    // MARK: - Aggiornamenti
+    @Published var updateResult: UpdateChecker.Result?
+    @Published var isCheckingUpdate = false
+    /// Imposta qui il tuo repo GitHub "owner/repo" per abilitare il controllo aggiornamenti.
+    static let githubRepo = ""
+    static let appVersion = "0.1.0"
+
+    func checkForUpdates() {
+        let checker = UpdateChecker(repo: Self.githubRepo, currentVersion: Self.appVersion)
+        guard checker.isConfigured else { return }
+        isCheckingUpdate = true
+        Task {
+            let result = try? await checker.check()
+            await MainActor.run {
+                self.updateResult = result
+                self.isCheckingUpdate = false
+            }
+        }
     }
 }

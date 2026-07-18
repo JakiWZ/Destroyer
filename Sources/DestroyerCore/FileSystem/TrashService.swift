@@ -50,9 +50,12 @@ public struct TrashService {
     public func trashAll(_ urls: [URL]) -> Outcome {
         var trashed: [URL] = []
         var failed: [RemovalOutcome.Failure] = []
+        var moves: [RemovalOutcome.Move] = []
         for url in urls {
             do {
-                trashed.append(try trash(url))
+                let inTrash = try trash(url)
+                trashed.append(inTrash)
+                moves.append(.init(original: url, inTrash: inTrash))
             } catch let TrashError.blockedBySafety(u) {
                 failed.append(.init(url: u, message: "Bloccato dalla guardia di sicurezza"))
             } catch let TrashError.underlying(u, msg) {
@@ -61,7 +64,26 @@ public struct TrashService {
                 failed.append(.init(url: url, message: error.localizedDescription))
             }
         }
-        return Outcome(trashed: trashed, failed: failed)
+        return Outcome(trashed: trashed, failed: failed, moves: moves)
+    }
+
+    /// Annulla gli spostamenti riportando i file dalla loro posizione nel Cestino
+    /// a quella originale. Ritorna il numero di elementi ripristinati.
+    @discardableResult
+    public func undo(_ moves: [RemovalOutcome.Move]) -> Int {
+        var restored = 0
+        for move in moves {
+            // Ripristina solo se l'originale non è ricomparso e il file è ancora nel Cestino.
+            guard fileManager.fileExists(atPath: move.inTrash.path),
+                  !fileManager.fileExists(atPath: move.original.path) else { continue }
+            do {
+                try fileManager.moveItem(at: move.inTrash, to: move.original)
+                restored += 1
+            } catch {
+                continue
+            }
+        }
+        return restored
     }
 }
 
@@ -76,19 +98,35 @@ public struct RemovalOutcome: Sendable {
         }
     }
 
+    /// Spostamento reversibile: da dove veniva → dove si trova ora nel Cestino.
+    public struct Move: Sendable {
+        public let original: URL
+        public let inTrash: URL
+        public init(original: URL, inTrash: URL) {
+            self.original = original
+            self.inTrash = inTrash
+        }
+    }
+
     public let trashed: [URL]
     public let failed: [Failure]
+    /// Spostamenti annullabili (solo rimozioni utente; gli item admin non sono annullabili).
+    public let moves: [Move]
 
-    public init(trashed: [URL], failed: [Failure]) {
+    public init(trashed: [URL], failed: [Failure], moves: [Move] = []) {
         self.trashed = trashed
         self.failed = failed
+        self.moves = moves
     }
 
     public var totalTrashed: Int { trashed.count }
+    public var canUndo: Bool { !moves.isEmpty }
 
     /// Unisce due esiti (es. rimozione normale + rimozione admin).
     public func merged(with other: RemovalOutcome) -> RemovalOutcome {
-        RemovalOutcome(trashed: trashed + other.trashed, failed: failed + other.failed)
+        RemovalOutcome(trashed: trashed + other.trashed,
+                       failed: failed + other.failed,
+                       moves: moves + other.moves)
     }
 
     public static let empty = RemovalOutcome(trashed: [], failed: [])

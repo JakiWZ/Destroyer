@@ -53,6 +53,12 @@ public struct ThreatScanner {
         var reasons: [String] = []
         var severity: ThreatSeverity = .info
 
+        // 0) Corrispondenza con un indicatore noto di adware/PUP.
+        if let indicator = KnownAdwareIndicators.match(label: label, path: programPath) {
+            reasons.append("Corrisponde a un indicatore noto di adware/PUP: \(indicator)")
+            severity = max(severity, .high)
+        }
+
         // 1) Programma mancante (job orfano) — spesso residuo, a volte occultamento.
         if let p = programPath, !fileManager.fileExists(atPath: p) {
             reasons.append("L'eseguibile referenziato non esiste: \(p)")

@@ -98,6 +98,9 @@ struct LeftoverReviewView: View {
                     .foregroundStyle(item.isSelected ? Theme.accentSolid : Theme.textTertiary)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(item.url.lastPathComponent)
+            .accessibilityValue(item.isSelected ? "selezionato" : "non selezionato")
+            .accessibilityAddTraits(item.isSelected ? [.isButton, .isSelected] : .isButton)
 
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
