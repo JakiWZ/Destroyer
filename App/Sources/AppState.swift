@@ -5,6 +5,8 @@ enum AppSection: String, CaseIterable, Identifiable {
     case dashboard
     case applications
     case cleanup
+    case space
+    case performance
     case protection
     case monitor
 
@@ -15,6 +17,8 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .dashboard:    return "Dashboard"
         case .applications: return "Applicazioni"
         case .cleanup:      return "Pulizia"
+        case .space:        return "Spazio"
+        case .performance:  return "Prestazioni"
         case .protection:   return "Protezione"
         case .monitor:      return "Monitor"
         }
@@ -25,6 +29,8 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .dashboard:    return "gauge.with.dots.needle.67percent"
         case .applications: return "trash"
         case .cleanup:      return "sparkles"
+        case .space:        return "chart.pie.fill"
+        case .performance:  return "bolt.horizontal.fill"
         case .protection:   return "shield.lefthalf.filled"
         case .monitor:      return "waveform.path.ecg"
         }
@@ -347,6 +353,99 @@ final class AppState: ObservableObject {
         scan = nil
         lastOutcome = nil
         undoneCount = nil
+    }
+
+    // MARK: - Spazio (Space Lens, file grandi/vecchi, duplicati)
+    private let spaceLens = SpaceLensScanner()
+    private let fileInsight = FileInsightScanner()
+    @Published var spaceEntries: [SpaceEntry] = []
+    @Published var largeOldFiles: [ScannedFile] = []
+    @Published var duplicateGroups: [DuplicateGroup] = []
+    @Published var isScanningSpace = false
+
+    func scanSpace() {
+        isScanningSpace = true
+        let lens = spaceLens
+        let insight = fileInsight
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        Task {
+            let entries = await Task.detached { lens.breakdown(of: home) }.value
+            let large = await Task.detached { insight.largeOrOld() }.value
+            let dups = await Task.detached { insight.duplicates() }.value
+            await MainActor.run {
+                self.spaceEntries = entries
+                self.largeOldFiles = large
+                self.duplicateGroups = dups
+                self.isScanningSpace = false
+            }
+        }
+    }
+
+    func toggleLargeOld(_ file: ScannedFile) {
+        if let i = largeOldFiles.firstIndex(where: { $0.id == file.id }) {
+            largeOldFiles[i].isSelected.toggle()
+        }
+    }
+
+    func toggleDuplicate(groupID: UUID, fileID: URL) {
+        if let g = duplicateGroups.firstIndex(where: { $0.id == groupID }),
+           let f = duplicateGroups[g].files.firstIndex(where: { $0.id == fileID }) {
+            duplicateGroups[g].files[f].isSelected.toggle()
+        }
+    }
+
+    /// Sposta nel Cestino i file selezionati (grandi/vecchi + duplicati).
+    func trashSelectedFiles() {
+        let urls = largeOldFiles.filter(\.isSelected).map(\.url)
+            + duplicateGroups.flatMap { $0.files }.filter(\.isSelected).map(\.url)
+        guard !urls.isEmpty else { return }
+        let trash = self.trash
+        Task {
+            _ = await Task.detached { trash.trashAll(urls) }.value
+            await MainActor.run { self.scanSpace(); self.refreshStatus() }
+        }
+    }
+
+    // MARK: - Prestazioni (elementi di avvio)
+    private let loginScanner = LoginItemsScanner()
+    @Published var loginItems: [LoginItem] = []
+
+    func scanLoginItems() {
+        let scanner = loginScanner
+        Task {
+            let items = await Task.detached { scanner.scan() }.value
+            await MainActor.run { self.loginItems = items }
+        }
+    }
+
+    /// Rimuove un elemento di avvio (unload + Cestino, admin se di sistema).
+    func removeLoginItem(_ item: LoginItem) {
+        let category: LeftoverCategory = item.plistURL.deletingLastPathComponent()
+            .lastPathComponent == "LaunchDaemons" ? .launchDaemons : .launchAgents
+        let leftover = LeftoverItem(url: item.plistURL, category: category, sizeBytes: 0,
+                                    isSystemProtected: false, requiresAuthorization: item.isSystem)
+        let trash = self.trash
+        let adminTrash = self.adminTrash
+        Task {
+            let outcome = await Task.detached { () -> RemovalOutcome in
+                item.isSystem ? adminTrash.trash([leftover]) : trash.trashItems([leftover])
+            }.value
+            await MainActor.run {
+                if !outcome.trashed.isEmpty { self.loginItems.removeAll { $0.id == item.id } }
+            }
+        }
+    }
+
+    // MARK: - Svuota Cestino (permanente)
+    private let trashEmptier = TrashEmptier()
+    @Published var emptiedCount: Int?
+
+    func emptyTrash() {
+        let emptier = trashEmptier
+        Task {
+            let n = await Task.detached { emptier.empty() }.value
+            await MainActor.run { self.emptiedCount = n; self.refreshStatus() }
+        }
     }
 
     // MARK: - Aggiornamenti

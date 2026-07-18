@@ -77,13 +77,38 @@ struct CleanupView: View {
     }
 
     private var footer: some View {
+        VStack(spacing: 10) {
+            HStack {
+                Text("\(ByteSize.string(appState.junkSelectedBytes)) selezionati")
+                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+                Spacer()
+                AccentButton(title: "Pulisci nel Cestino", systemImage: "sparkles") { appState.cleanJunk() }
+                    .opacity(appState.junkSelectedBytes == 0 ? 0.5 : 1)
+                    .disabled(appState.junkSelectedBytes == 0)
+            }
+            emptyTrashRow
+        }
+    }
+
+    @State private var confirmEmpty = false
+    private var emptyTrashRow: some View {
         HStack {
-            Text("\(ByteSize.string(appState.junkSelectedBytes)) selezionati")
-                .font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Svuota il Cestino").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+                Text(appState.emptiedCount.map { "Rimossi \($0) elementi" } ?? "Eliminazione permanente")
+                    .font(.caption2).foregroundStyle(Theme.textTertiary)
+            }
             Spacer()
-            AccentButton(title: "Pulisci nel Cestino", systemImage: "sparkles") { appState.cleanJunk() }
-                .opacity(appState.junkSelectedBytes == 0 ? 0.5 : 1)
-                .disabled(appState.junkSelectedBytes == 0)
+            GhostButton(title: "Svuota", systemImage: "trash.slash") { confirmEmpty = true }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: Theme.cornerSmall).fill(Theme.surface))
+        .overlay(RoundedRectangle(cornerRadius: Theme.cornerSmall).strokeBorder(Theme.stroke))
+        .confirmationDialog("Svuotare definitivamente il Cestino?", isPresented: $confirmEmpty, titleVisibility: .visible) {
+            Button("Svuota il Cestino", role: .destructive) { appState.emptyTrash() }
+            Button("Annulla", role: .cancel) {}
+        } message: {
+            Text("Questa azione è permanente e non reversibile.")
         }
     }
 }

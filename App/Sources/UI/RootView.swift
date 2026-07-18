@@ -177,6 +177,8 @@ struct RootView: View {
             case .dashboard:    DashboardView()
             case .applications: UninstallerView()
             case .cleanup:      CleanupView()
+            case .space:        SpaceView()
+            case .performance:  PerformanceView()
             case .monitor:      MonitorView()
             case .protection:   ProtectionView()
             }

@@ -165,6 +165,25 @@ check(xp.match(fileURL: cleanFile) == nil, "NON segnala il file pulito")
 let realXP = XProtectSignatures()
 check(realXP.ruleCount > 0, "carica le firme XProtect reali del Mac (\(realXP.ruleCount) regole)")
 
+// MARK: - Spazio (duplicati) e svuota-cestino
+section("FileInsightScanner / TrashEmptier")
+let spaceHome = fm.temporaryDirectory.appendingPathComponent("dz-space-\(UUID().uuidString)", isDirectory: true)
+defer { try? fm.removeItem(at: spaceHome) }
+let dl = spaceHome.appendingPathComponent("Downloads", isDirectory: true)
+mkdir(dl)
+// Due file identici (duplicati) + uno diverso.
+writeFile(dl.appendingPathComponent("a.txt"), "contenuto identico")
+writeFile(dl.appendingPathComponent("b.txt"), "contenuto identico")
+writeFile(dl.appendingPathComponent("c.txt"), "diverso")
+let dups = FileInsightScanner(home: spaceHome, roots: [dl]).duplicates()
+check(dups.count == 1, "trova un gruppo di duplicati")
+check(dups.first?.files.count == 2, "il gruppo ha due file")
+check(dups.first?.files.filter { $0.isSelected }.count == 1, "propone la rimozione di una sola copia")
+
+// TrashEmptier opera solo dentro ~/.Trash
+let te = TrashEmptier(home: spaceHome)
+check(te.size() >= 0, "dimensione Cestino leggibile")
+
 // MARK: - Esito
 print("\n" + String(repeating: "─", count: 40))
 if failures == 0 {

@@ -12,13 +12,12 @@ struct DashboardView: View {
             }
             .padding(28)
         }
+        .techGridBackground()
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Buongiorno 👋")
-                .font(.system(size: 15))
-                .foregroundStyle(Theme.textSecondary)
+            TechTag(text: "system status")
             Text("Stato del tuo Mac")
                 .font(.system(size: 28, weight: .bold))
                 .foregroundStyle(Theme.textPrimary)
