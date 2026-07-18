@@ -53,18 +53,43 @@ final class AppState: ObservableObject {
     private let junkScanner = JunkScanner()
     private let trash = TrashService()
     private let adminTrash = AdminTrashService()
-    private let threatScanner = ThreatScanner()
+    private let malwareScanner = MalwareScanner()
 
     // MARK: - Protezione
     @Published var findings: [ThreatFinding] = []
     @Published var isScanningThreats = false
     @Published var didScanThreats = false
+    @Published var scanProgress: Double = 0
+    @Published var scanMode: ScanMode = .quick
+    private var cancelToken = CancelToken()
 
-    func scanThreats() {
+    /// Token di cancellazione thread-safe condiviso col motore off-main.
+    final class CancelToken: @unchecked Sendable {
+        private let lock = NSLock()
+        private var cancelled = false
+        var isCancelled: Bool { lock.lock(); defer { lock.unlock() }; return cancelled }
+        func cancel() { lock.lock(); cancelled = true; lock.unlock() }
+    }
+
+    /// Numero di firme XProtect caricate (per mostrarlo nella UI).
+    var signatureCount: Int { malwareScanner.signatureCount }
+
+    func scanMalware(mode: ScanMode) {
+        scanMode = mode
         isScanningThreats = true
-        let scanner = threatScanner
+        didScanThreats = false
+        scanProgress = 0
+        let token = CancelToken()
+        cancelToken = token
+        let scanner = malwareScanner
         Task {
-            let results = await Task.detached { scanner.scan() }.value
+            let results = await Task.detached(priority: .userInitiated) {
+                scanner.scan(
+                    mode: mode,
+                    progress: { p in Task { @MainActor [weak self] in self?.scanProgress = p } },
+                    isCancelled: { token.isCancelled }
+                )
+            }.value
             await MainActor.run {
                 self.findings = results
                 self.isScanningThreats = false
@@ -72,6 +97,8 @@ final class AppState: ObservableObject {
             }
         }
     }
+
+    func cancelScan() { cancelToken.cancel() }
 
     /// Rimuove (Cestino) il launch item segnalato, scaricandolo prima con launchctl.
     func removeThreat(_ finding: ThreatFinding) {

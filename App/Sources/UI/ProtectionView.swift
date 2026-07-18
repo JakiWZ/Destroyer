@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Modulo Protezione: rileva persistenza sospetta (LaunchAgents/Daemons).
-/// Rilevatore difensivo trasparente, non un antivirus a firme.
+/// Modulo Protezione: motore antimalware on-demand a 3 modalità.
+/// Firme XProtect di Apple + euristica + persistenza. Rilevatore trasparente e difensivo.
 struct ProtectionView: View {
     @EnvironmentObject var appState: AppState
 
@@ -26,41 +26,70 @@ struct ProtectionView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Protezione")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(Theme.textPrimary)
-                Text("Controlla i punti di avvio automatico (LaunchAgents/Daemons) alla ricerca di persistenza sospetta.")
-                    .foregroundStyle(Theme.textSecondary)
-                    .frame(maxWidth: 520, alignment: .leading)
-            }
-            Spacer()
-            if appState.didScanThreats && !appState.isScanningThreats {
-                GhostButton(title: "Riscansiona", systemImage: "arrow.clockwise") { appState.scanThreats() }
-            }
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Protezione")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundStyle(Theme.textPrimary)
+            Text("Scansione antimalware con le firme di Apple XProtect, euristica e analisi della persistenza.")
+                .foregroundStyle(Theme.textSecondary)
+                .frame(maxWidth: 560, alignment: .leading)
+            Text("\(appState.signatureCount) firme XProtect caricate")
+                .font(.caption2)
+                .foregroundStyle(Theme.textTertiary)
         }
     }
 
     private var intro: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 18) {
             ZStack {
                 Circle().fill(Theme.accentGradient).frame(width: 76, height: 76)
                     .shadow(color: Theme.accentMid.opacity(0.5), radius: 16)
                 Image(systemName: "shield.lefthalf.filled")
                     .font(.system(size: 34, weight: .bold)).foregroundStyle(.white)
             }
-            Text("Avvia un controllo di sicurezza")
+            Text("Scegli la profondità di scansione")
                 .font(.headline).foregroundStyle(Theme.textPrimary)
-            AccentButton(title: "Scansiona ora", systemImage: "magnifyingglass") { appState.scanThreats() }
+            HStack(spacing: 12) {
+                ForEach(ScanMode.allCases, id: \.self) { mode in
+                    modeCard(mode)
+                }
+            }
         }
-        .frame(maxWidth: .infinity).padding(.vertical, 40)
+        .frame(maxWidth: .infinity).padding(.vertical, 30)
+    }
+
+    private func modeCard(_ mode: ScanMode) -> some View {
+        Button { appState.scanMalware(mode: mode) } label: {
+            VStack(spacing: 8) {
+                Image(systemName: icon(for: mode))
+                    .font(.system(size: 24)).foregroundStyle(Theme.accentGradient)
+                Text(mode.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+                Text(mode.subtitle)
+                    .font(.caption2).foregroundStyle(Theme.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(width: 150, height: 130)
+            .card(padding: 14)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Scansione \(mode.title): \(mode.subtitle)")
+    }
+
+    private func icon(for mode: ScanMode) -> String {
+        switch mode {
+        case .quick: return "bolt.fill"
+        case .balanced: return "shield.fill"
+        case .deep: return "magnifyingglass.circle.fill"
+        }
     }
 
     private var scanning: some View {
-        VStack(spacing: 12) {
-            ProgressView().controlSize(.large)
-            Text("Analisi dei punti di persistenza…").foregroundStyle(Theme.textSecondary)
+        VStack(spacing: 14) {
+            ProgressView(value: appState.scanProgress)
+                .frame(maxWidth: 360)
+            Text("Scansione \(appState.scanMode.title.lowercased()) in corso… \(Int(appState.scanProgress * 100))%")
+                .foregroundStyle(Theme.textSecondary)
+            GhostButton(title: "Annulla", systemImage: "xmark") { appState.cancelScan() }
         }
         .frame(maxWidth: .infinity).padding(.vertical, 50)
     }
@@ -69,10 +98,13 @@ struct ProtectionView: View {
         VStack(spacing: 12) {
             Image(systemName: "checkmark.shield.fill")
                 .font(.system(size: 46)).foregroundStyle(Theme.ok)
-            Text("Nessuna persistenza sospetta")
+            Text("Nessuna minaccia rilevata")
                 .font(.title3.weight(.semibold)).foregroundStyle(Theme.textPrimary)
-            Text("I launch item analizzati risultano firmati e in posizioni attese.")
+            Text("Analisi con firme XProtect di Apple, euristica e persistenza.")
                 .font(.caption).foregroundStyle(Theme.textSecondary)
+            GhostButton(title: "Nuova scansione", systemImage: "arrow.clockwise") {
+                appState.didScanThreats = false
+            }
         }
         .frame(maxWidth: .infinity).padding(.vertical, 40)
     }
@@ -81,9 +113,10 @@ struct ProtectionView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 severityBadge(f.severity)
+                detectionBadge(f.detection)
                 VStack(alignment: .leading, spacing: 1) {
                     HStack(spacing: 6) {
-                        Text(f.title)
+                        Text(f.family ?? f.title)
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(Theme.textPrimary)
                         if f.requiresAuthorization {
@@ -106,7 +139,7 @@ struct ProtectionView: View {
                     NSWorkspace.shared.activateFileViewerSelecting([f.itemURL])
                 }
                 Spacer()
-                AccentButton(title: "Rimuovi", systemImage: "trash", role: .destructive) {
+                AccentButton(title: "Metti in quarantena", systemImage: "trash", role: .destructive) {
                     appState.removeThreat(f)
                 }
             }
@@ -117,9 +150,15 @@ struct ProtectionView: View {
     private func severityBadge(_ s: ThreatSeverity) -> some View {
         let color: Color = s == .high ? Theme.danger : (s == .medium ? Theme.warning : Theme.textTertiary)
         return Text(s.label.uppercased())
-            .font(.system(size: 9, weight: .bold))
-            .foregroundStyle(.white)
+            .font(.system(size: 9, weight: .bold)).foregroundStyle(.white)
             .padding(.horizontal, 8).padding(.vertical, 4)
             .background(Capsule().fill(color))
+    }
+
+    private func detectionBadge(_ d: DetectionType) -> some View {
+        Text(d.label)
+            .font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.textSecondary)
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(Capsule().fill(Theme.strokeStrong))
     }
 }

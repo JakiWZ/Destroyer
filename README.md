@@ -15,10 +15,12 @@ Look "neon" a tema scuro, sicurezza prima di tutto: **ogni rimozione va nel Cest
   script, log…) anche nelle posizioni **di sistema**. Chiude l'app se in esecuzione, scarica i
   launch job (`launchctl`) e, per i file di sistema, **chiede la password admin**.
 - **Pulizia** — scansione sicura di cache/log utente, spostati nel Cestino.
-- **Protezione** — rilevatore difensivo di **persistenza sospetta** (LaunchAgents/Daemons):
-  segnala eseguibili non firmati, in posizioni anomale (`/tmp`, cartelle nascoste), o con
-  comandi tipo `curl | sh`. Ispirato a KnockKnock/BlockBlock di Objective-See. **Non** è un
-  antivirus a firme.
+- **Protezione** — motore antimalware **on-demand a 3 modalità** (Rapida/Bilanciata/Profonda):
+  usa le **firme XProtect di Apple** già presenti e auto-aggiornate su ogni Mac (match sui
+  pattern di byte), più **euristica** (Gatekeeper/notarizzazione, quarantena, posizioni anomale,
+  indicatori adware noti) e **analisi della persistenza** (LaunchAgents/Daemons). Le minacce si
+  mettono in **quarantena nel Cestino** (reversibile). Ispirato a Malwarebytes/Moonlock/XProtect;
+  trasparente e open source. Il motore YARA completo e il real-time (Endpoint Security) sono roadmap.
 - **Monitor** — metriche di sistema in tempo reale.
 - **Watcher del Cestino** — quando trascini un'app nel Cestino, propone di pulirne i residui.
 

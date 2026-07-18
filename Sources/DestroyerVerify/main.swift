@@ -138,6 +138,33 @@ if let evil = threats.first(where: { $0.itemURL.lastPathComponent == "com.evil.p
 }
 check(!threats.contains { $0.itemURL.lastPathComponent == "com.good.tool.plist" }, "NON segnala /bin/ls firmato")
 
+// MARK: - XProtectSignatures (firme Apple)
+section("XProtectSignatures — matching firme")
+// Regola sintetica: cerca il pattern di byte di "EVILSIG".
+let evilBytes = Array("EVILSIG".utf8)
+let evilHex = evilBytes.map { String(format: "%02X", $0) }.joined()
+let synthRule: [[String: Any]] = [[
+    "Description": "OSX.Test.Synthetic",
+    "Matches": [["MatchType": "Match", "Pattern": evilHex]]
+]]
+let synthPlist = fm.temporaryDirectory.appendingPathComponent("xp-\(UUID().uuidString).plist")
+try? (synthRule as NSArray).write(to: synthPlist)
+let xp = XProtectSignatures(plistURL: synthPlist)
+check(xp.ruleCount == 1, "carica la regola sintetica")
+
+let evilFile = fm.temporaryDirectory.appendingPathComponent("evil-\(UUID().uuidString).bin")
+try? Data("prefix EVILSIG suffix".utf8).write(to: evilFile)
+let cleanFile = fm.temporaryDirectory.appendingPathComponent("clean-\(UUID().uuidString).bin")
+try? Data("nothing to see here".utf8).write(to: cleanFile)
+defer { try? fm.removeItem(at: synthPlist); try? fm.removeItem(at: evilFile); try? fm.removeItem(at: cleanFile) }
+
+check(xp.match(fileURL: evilFile) == "OSX.Test.Synthetic", "rileva il file con il pattern")
+check(xp.match(fileURL: cleanFile) == nil, "NON segnala il file pulito")
+
+// Le firme XProtect reali della macchina devono essere caricate e parse.
+let realXP = XProtectSignatures()
+check(realXP.ruleCount > 0, "carica le firme XProtect reali del Mac (\(realXP.ruleCount) regole)")
+
 // MARK: - Esito
 print("\n" + String(repeating: "─", count: 40))
 if failures == 0 {
