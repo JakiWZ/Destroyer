@@ -17,25 +17,34 @@ struct MonitorView: View {
                 }
 
                 HStack(spacing: 20) {
-                    gauge(title: "Disco", value: appState.snapshot?.diskUsedFraction ?? 0)
+                    gauge(title: "CPU", value: appState.cpuUsage)
                     gauge(title: "Memoria", value: appState.snapshot?.ramUsedFraction ?? 0)
+                    gauge(title: "Disco", value: appState.snapshot?.diskUsedFraction ?? 0)
                 }
 
                 if let s = appState.snapshot {
                     HStack(spacing: 16) {
+                        StatTile(icon: "cpu", title: "CPU",
+                                 value: "\(Int(appState.cpuUsage * 100))%", fraction: appState.cpuUsage)
                         StatTile(icon: "internaldrive", title: "DISCO LIBERO",
                                  value: ByteSize.string(s.diskAvailableBytes), fraction: s.diskUsedFraction)
                         StatTile(icon: "memorychip", title: "RAM USATA",
                                  value: ByteSize.string(s.ramUsedBytes), fraction: s.ramUsedFraction)
-                        StatTile(icon: "trash", title: "CESTINO",
-                                 value: ByteSize.string(s.trashBytes))
+                        if let b = appState.battery, b.isPresent {
+                            StatTile(icon: b.isCharging ? "battery.100.bolt" : "battery.75",
+                                     title: "BATTERIA", value: "\(Int(b.level * 100))%",
+                                     caption: b.isCharging ? "in carica" : nil, fraction: b.level)
+                        } else {
+                            StatTile(icon: "trash", title: "CESTINO", value: ByteSize.string(s.trashBytes))
+                        }
                     }
                 }
             }
             .padding(28)
         }
-        .onAppear { appState.refreshStatus() }
-        .onReceive(tick) { _ in appState.refreshStatus() }
+        .techGridBackground()
+        .onAppear { appState.refreshStatus(); appState.refreshLive() }
+        .onReceive(tick) { _ in appState.refreshStatus(); appState.refreshLive() }
     }
 
     private func gauge(title: String, value: Double) -> some View {

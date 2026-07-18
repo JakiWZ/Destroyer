@@ -22,6 +22,7 @@ struct CleanupView: View {
             }
             .padding(28)
         }
+        .techGridBackground()
         .onAppear { if appState.junkGroups.isEmpty { appState.scanJunk() } }
     }
 

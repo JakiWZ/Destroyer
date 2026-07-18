@@ -8,6 +8,7 @@ enum AppSection: String, CaseIterable, Identifiable {
     case space
     case performance
     case protection
+    case privacy
     case monitor
 
     var id: String { rawValue }
@@ -20,6 +21,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .space:        return "Spazio"
         case .performance:  return "Prestazioni"
         case .protection:   return "Protezione"
+        case .privacy:      return "Privacy"
         case .monitor:      return "Monitor"
         }
     }
@@ -32,6 +34,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .space:        return "chart.pie.fill"
         case .performance:  return "bolt.horizontal.fill"
         case .protection:   return "shield.lefthalf.filled"
+        case .privacy:      return "hand.raised.fill"
         case .monitor:      return "waveform.path.ecg"
         }
     }
@@ -511,6 +514,93 @@ final class AppState: ObservableObject {
             } catch {
                 await MainActor.run { self.maintenanceError = "\(error)" }
             }
+        }
+    }
+
+    // MARK: - Privacy
+    private let privacyScanner = PrivacyScanner()
+    @Published var privacyItems: [PrivacyItem] = []
+    @Published var isScanningPrivacy = false
+
+    func scanPrivacy() {
+        isScanningPrivacy = true
+        let scanner = privacyScanner
+        Task {
+            let items = await Task.detached { scanner.scan() }.value
+            await MainActor.run { self.privacyItems = items; self.isScanningPrivacy = false }
+        }
+    }
+
+    func togglePrivacy(_ item: PrivacyItem) {
+        if let i = privacyItems.firstIndex(where: { $0.id == item.id }) { privacyItems[i].isSelected.toggle() }
+    }
+
+    var privacySelectedBytes: Int64 { privacyItems.filter(\.isSelected).reduce(0) { $0 + $1.sizeBytes } }
+
+    func clearPrivacy() {
+        let urls = privacyItems.filter(\.isSelected).map(\.url)
+        guard !urls.isEmpty else { return }
+        let trash = self.trash
+        Task {
+            _ = await Task.detached { trash.trashAll(urls) }.value
+            await MainActor.run { self.scanPrivacy(); self.refreshStatus() }
+        }
+    }
+
+    // MARK: - App Updater
+    private let appUpdater = AppUpdater()
+    @Published var appUpdates: [AppUpdate] = []
+    @Published var brewAvailable = true
+    @Published var isCheckingApps = false
+
+    func checkAppUpdates() {
+        isCheckingApps = true
+        let updater = appUpdater
+        Task {
+            let result = await Task.detached { updater.check() }.value
+            await MainActor.run {
+                self.appUpdates = result.updates
+                self.brewAvailable = result.brewAvailable
+                self.isCheckingApps = false
+            }
+        }
+    }
+
+    // MARK: - Metriche live (CPU/batteria) per Monitor e menu bar
+    private let liveMetrics = LiveMetrics()
+    @Published var cpuUsage: Double = 0
+    @Published var battery: LiveMetrics.Battery?
+
+    func refreshLive() {
+        let m = liveMetrics
+        Task {
+            let cpu = await Task.detached { m.cpuUsage() }.value
+            let bat = await Task.detached { m.battery() }.value
+            await MainActor.run { self.cpuUsage = cpu; self.battery = bat }
+        }
+    }
+
+    // MARK: - Scansioni programmate (in-app, mentre l'app è aperta)
+    private static let scheduleKey = "smartscan.interval.minutes"
+    @Published var scheduleMinutes: Int = 0   // 0 = disattivo
+    private var scheduleTimer: Timer?
+
+    func restoreSchedule() {
+        scheduleMinutes = UserDefaults.standard.integer(forKey: Self.scheduleKey)
+        applySchedule()
+    }
+
+    func setSchedule(minutes: Int) {
+        scheduleMinutes = minutes
+        UserDefaults.standard.set(minutes, forKey: Self.scheduleKey)
+        applySchedule()
+    }
+
+    private func applySchedule() {
+        scheduleTimer?.invalidate()
+        guard scheduleMinutes > 0 else { return }
+        scheduleTimer = Timer.scheduledTimer(withTimeInterval: Double(scheduleMinutes) * 60, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.smartScan() }
         }
     }
 

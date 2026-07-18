@@ -16,10 +16,13 @@ struct MenuBarView: View {
                 }
             }
 
+            stat("CPU", "\(Int(appState.cpuUsage * 100))%", appState.cpuUsage)
             if let s = appState.snapshot {
-                stat("Disco libero", ByteSize.string(s.diskAvailableBytes), s.diskUsedFraction)
                 stat("RAM usata", "\(Int(s.ramUsedFraction * 100))%", s.ramUsedFraction)
-                stat("Cestino", ByteSize.string(s.trashBytes), nil)
+                stat("Disco libero", ByteSize.string(s.diskAvailableBytes), s.diskUsedFraction)
+                if let b = appState.battery, b.isPresent {
+                    stat("Batteria" + (b.isCharging ? " ⚡" : ""), "\(Int(b.level * 100))%", b.level)
+                }
             } else {
                 Text("Lettura stato…").font(.caption).foregroundStyle(.secondary)
             }
@@ -40,7 +43,7 @@ struct MenuBarView: View {
         }
         .padding(14)
         .frame(width: 260)
-        .onAppear { appState.refreshStatus() }
+        .onAppear { appState.refreshStatus(); appState.refreshLive() }
     }
 
     private func stat(_ title: String, _ value: String, _ fraction: Double?) -> some View {

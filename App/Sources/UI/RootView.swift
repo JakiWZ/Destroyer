@@ -35,6 +35,7 @@ struct RootView: View {
             appState.startTrashWatcher()
             appState.checkForUpdates()
             appState.restoreRealtime()
+            appState.restoreSchedule()
         }
     }
 
@@ -179,6 +180,7 @@ struct RootView: View {
             case .cleanup:      CleanupView()
             case .space:        SpaceView()
             case .performance:  PerformanceView()
+            case .privacy:      PrivacyView()
             case .monitor:      MonitorView()
             case .protection:   ProtectionView()
             }

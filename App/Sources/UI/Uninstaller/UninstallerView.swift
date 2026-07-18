@@ -30,10 +30,37 @@ struct UninstallerView: View {
                         .foregroundStyle(Theme.textSecondary)
                 }
                 dropZone
+                updatesSection
                 appListHeader
                 appGrid
             }
             .padding(28)
+        }
+        .techGridBackground()
+        .onAppear { if appState.appUpdates.isEmpty { appState.checkAppUpdates() } }
+    }
+
+    @ViewBuilder
+    private var updatesSection: some View {
+        if !appState.appUpdates.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                TechTag(text: "app updater")
+                VStack(spacing: 0) {
+                    ForEach(appState.appUpdates) { u in
+                        HStack(spacing: 10) {
+                            Image(systemName: "arrow.up.circle.fill").foregroundStyle(Theme.accentSolid)
+                            Text(u.name).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.textPrimary)
+                            Spacer()
+                            Text("\(u.currentVersion) → \(u.latestVersion)")
+                                .font(Theme.mono(10)).foregroundStyle(Theme.textSecondary)
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                    }
+                }
+                .card(padding: 4)
+                Text("Aggiorna con: brew upgrade --cask")
+                    .font(Theme.mono(9)).foregroundStyle(Theme.textTertiary)
+            }
         }
     }
 

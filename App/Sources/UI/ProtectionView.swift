@@ -26,6 +26,7 @@ struct ProtectionView: View {
             }
             .padding(28)
         }
+        .techGridBackground()
         .sheet(isPresented: $showSettings) { settingsSheet }
     }
 
@@ -140,6 +141,19 @@ struct ProtectionView: View {
 
             Divider().overlay(Theme.stroke)
 
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Scansione programmata").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+                Text("Smart Scan automatico mentre l'app è aperta.").font(.caption).foregroundStyle(Theme.textSecondary)
+                Picker("", selection: Binding(get: { appState.scheduleMinutes }, set: { appState.setSchedule(minutes: $0) })) {
+                    Text("Off").tag(0)
+                    Text("Ogni 30 min").tag(30)
+                    Text("Ogni ora").tag(60)
+                    Text("Ogni 6 ore").tag(360)
+                }.pickerStyle(.segmented).labelsHidden()
+            }
+
+            Divider().overlay(Theme.stroke)
+
             VStack(alignment: .leading, spacing: 6) {
                 Text("Disinstalla completamente").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
                 Text("Disattiva il monitoraggio e azzera tutte le impostazioni e i risultati della Protezione.")
@@ -156,7 +170,7 @@ struct ProtectionView: View {
             }
         }
         .padding(24)
-        .frame(width: 460, height: 340)
+        .frame(width: 460, height: 460)
         .background(Theme.background)
     }
 

@@ -51,6 +51,20 @@ public struct JunkScanner {
             name: "Log", icon: "doc.text"
         ) { groups.append(logs) }
 
+        // Junk di sviluppo (Xcode) — ricreabile, sicuro da rimuovere.
+        let dev = lib.appendingPathComponent("Developer", isDirectory: true)
+        for (rel, name) in [
+            ("Xcode/DerivedData", "Xcode DerivedData"),
+            ("Xcode/Archives", "Xcode Archives"),
+            ("Xcode/iOS DeviceSupport", "iOS DeviceSupport"),
+            ("CoreSimulator/Caches", "Simulator Caches")
+        ] {
+            if let g = groupFromChildren(of: dev.appendingPathComponent(rel, isDirectory: true),
+                                         name: name, icon: "hammer") {
+                groups.append(g)
+            }
+        }
+
         return groups
     }
 
