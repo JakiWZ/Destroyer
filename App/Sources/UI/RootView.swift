@@ -21,14 +21,48 @@ struct RootView: View {
                 trashSuggestionToast(app)
             }
         }
+        .overlay(alignment: .top) {
+            if let alert = appState.realtimeAlert {
+                realtimeAlertToast(alert)
+            }
+        }
         .animation(.spring(duration: 0.35), value: appState.trashedAppSuggestion)
+        .animation(.spring(duration: 0.35), value: appState.realtimeAlert?.id)
         .onAppear {
             appState.recheckAccess()
             appState.refreshStatus()
             appState.loadInstalledApps()
             appState.startTrashWatcher()
             appState.checkForUpdates()
+            appState.restoreRealtime()
         }
+    }
+
+    private func realtimeAlertToast(_ f: ThreatFinding) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.shield.fill")
+                .font(.system(size: 22)).foregroundStyle(Theme.danger)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Protezione in tempo reale: elemento sospetto")
+                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+                Text(f.family ?? f.itemURL.lastPathComponent)
+                    .font(.caption).foregroundStyle(Theme.textSecondary).lineLimit(1)
+            }
+            Spacer()
+            AccentButton(title: "Esamina", systemImage: "shield") {
+                appState.findings = [f]
+                appState.didScanThreats = true
+                appState.section = .protection
+                appState.dismissRealtimeAlert()
+            }
+            GhostButton(title: "Ignora") { appState.dismissRealtimeAlert() }
+        }
+        .padding(14)
+        .frame(maxWidth: 560)
+        .background(RoundedRectangle(cornerRadius: Theme.corner).fill(Theme.surfaceElevated))
+        .overlay(RoundedRectangle(cornerRadius: Theme.corner).strokeBorder(Theme.danger.opacity(0.5)))
+        .shadow(color: .black.opacity(0.4), radius: 20, y: 8)
+        .padding(.top, 16)
     }
 
     private func trashSuggestionToast(_ app: InstalledApp) -> some View {

@@ -100,6 +100,40 @@ final class AppState: ObservableObject {
 
     func cancelScan() { cancelToken.cancel() }
 
+    // MARK: - Protezione in tempo reale
+    private let realtimeMonitor = RealtimeMonitor()
+    private static let realtimeKey = "protection.realtime.enabled"
+    @Published var realtimeEnabled = false
+    /// Ultima minaccia rilevata dal monitor in tempo reale (per il banner).
+    @Published var realtimeAlert: ThreatFinding?
+
+    /// Ripristina lo stato del monitor dalle preferenze (all'avvio).
+    func restoreRealtime() {
+        realtimeMonitor.onThreat = { [weak self] finding in
+            self?.realtimeAlert = finding
+        }
+        if UserDefaults.standard.bool(forKey: Self.realtimeKey) {
+            setRealtime(true)
+        }
+    }
+
+    func setRealtime(_ on: Bool) {
+        realtimeEnabled = on
+        UserDefaults.standard.set(on, forKey: Self.realtimeKey)
+        if on { realtimeMonitor.start() } else { realtimeMonitor.stop() }
+    }
+
+    func dismissRealtimeAlert() { realtimeAlert = nil }
+
+    /// Rotellina → "Disinstalla completamente": disattiva e azzera tutto ciò che è opzionale.
+    func resetProtection() {
+        setRealtime(false)
+        findings = []
+        didScanThreats = false
+        realtimeAlert = nil
+        UserDefaults.standard.removeObject(forKey: Self.realtimeKey)
+    }
+
     /// Rimuove (Cestino) il launch item segnalato, scaricandolo prima con launchctl.
     func removeThreat(_ finding: ThreatFinding) {
         let category: LeftoverCategory = finding.itemURL.deletingLastPathComponent()

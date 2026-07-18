@@ -4,6 +4,8 @@ import SwiftUI
 /// Firme XProtect di Apple + euristica + persistenza. Rilevatore trasparente e difensivo.
 struct ProtectionView: View {
     @EnvironmentObject var appState: AppState
+    @State private var showSettings = false
+    @State private var showESInfo = false
 
     var body: some View {
         ScrollView {
@@ -13,6 +15,7 @@ struct ProtectionView: View {
                     scanning
                 } else if !appState.didScanThreats {
                     intro
+                    realtimeSection
                 } else if appState.findings.isEmpty {
                     clean
                 } else {
@@ -23,20 +26,138 @@ struct ProtectionView: View {
             }
             .padding(28)
         }
+        .sheet(isPresented: $showSettings) { settingsSheet }
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Protezione")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(Theme.textPrimary)
-            Text("Scansione antimalware con le firme di Apple XProtect, euristica e analisi della persistenza.")
-                .foregroundStyle(Theme.textSecondary)
-                .frame(maxWidth: 560, alignment: .leading)
-            Text("\(appState.signatureCount) firme XProtect caricate")
-                .font(.caption2)
-                .foregroundStyle(Theme.textTertiary)
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Protezione")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(Theme.textPrimary)
+                Text("Scansione antimalware con le firme di Apple XProtect, euristica e analisi della persistenza.")
+                    .foregroundStyle(Theme.textSecondary)
+                    .frame(maxWidth: 560, alignment: .leading)
+                Text("\(appState.signatureCount) firme XProtect caricate")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.textTertiary)
+            }
+            Spacer()
+            Button { showSettings = true } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Impostazioni protezione")
         }
+    }
+
+    // MARK: - Sezione tempo reale (due quadratoni)
+
+    private var realtimeSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Protezione in tempo reale")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Theme.textPrimary)
+            HStack(spacing: 14) {
+                lightRealtimeCard
+                endpointSecurityCard
+            }
+        }
+    }
+
+    private var lightRealtimeCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Image(systemName: "eye.fill").foregroundStyle(Theme.accentSolid)
+                Text("Monitoraggio leggero").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Toggle("", isOn: Binding(
+                    get: { appState.realtimeEnabled },
+                    set: { appState.setRealtime($0) }
+                )).labelsHidden().toggleStyle(.switch)
+            }
+            Text("Sorveglia Download e LaunchAgents: quando compare un file nuovo lo analizza con XProtect e ti avvisa.")
+                .font(.caption).foregroundStyle(Theme.textSecondary)
+            Text(appState.realtimeEnabled ? "● Attivo" : "○ Non attivo")
+                .font(.caption2)
+                .foregroundStyle(appState.realtimeEnabled ? Theme.ok : Theme.textTertiary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 140, alignment: .topLeading)
+        .card(padding: 16, highlighted: appState.realtimeEnabled)
+    }
+
+    private var endpointSecurityCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Image(systemName: "lock.shield.fill").foregroundStyle(Theme.textSecondary)
+                Text("Endpoint Security").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Text("richiede setup").font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(Theme.textTertiary)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Capsule().fill(Theme.strokeStrong))
+            }
+            Text("Vero real-time che può BLOCCARE l'esecuzione. Richiede un entitlement Apple approvato + una System Extension.")
+                .font(.caption).foregroundStyle(Theme.textSecondary)
+            Button("Perché non è attivo?") { showESInfo = true }
+                .font(.caption2).foregroundStyle(Theme.accentSolid).buttonStyle(.plain)
+                .popover(isPresented: $showESInfo) { esInfoPopover }
+        }
+        .frame(maxWidth: .infinity, minHeight: 140, alignment: .topLeading)
+        .card(padding: 16)
+    }
+
+    private var esInfoPopover: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Endpoint Security (real-time completo)")
+                .font(.headline).foregroundStyle(Theme.textPrimary)
+            Text("Per intercettare e bloccare i file prima dell'esecuzione, macOS richiede:")
+                .font(.caption).foregroundStyle(Theme.textSecondary)
+            Label("Entitlement Apple concesso su richiesta motivata", systemImage: "1.circle").font(.caption)
+            Label("Una System Extension privilegiata separata", systemImage: "2.circle").font(.caption)
+            Label("App notarizzata con identità riconosciuta", systemImage: "3.circle").font(.caption)
+            Text("Finché non abbiamo l'entitlement, usa il monitoraggio leggero.")
+                .font(.caption2).foregroundStyle(Theme.textTertiary)
+        }
+        .padding(16).frame(width: 340)
+    }
+
+    // MARK: - Impostazioni (rotellina)
+
+    private var settingsSheet: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Impostazioni Protezione")
+                .font(.title3.weight(.bold)).foregroundStyle(Theme.textPrimary)
+
+            Toggle(isOn: Binding(get: { appState.realtimeEnabled }, set: { appState.setRealtime($0) })) {
+                VStack(alignment: .leading) {
+                    Text("Monitoraggio leggero in tempo reale").foregroundStyle(Theme.textPrimary)
+                    Text("Osserva Download e LaunchAgents").font(.caption).foregroundStyle(Theme.textSecondary)
+                }
+            }
+
+            Divider().overlay(Theme.stroke)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Disinstalla completamente").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+                Text("Disattiva il monitoraggio e azzera tutte le impostazioni e i risultati della Protezione.")
+                    .font(.caption).foregroundStyle(Theme.textSecondary)
+                AccentButton(title: "Disinstalla tutto", systemImage: "trash", role: .destructive) {
+                    appState.resetProtection()
+                    showSettings = false
+                }
+            }
+            Spacer()
+            HStack {
+                Spacer()
+                GhostButton(title: "Chiudi") { showSettings = false }
+            }
+        }
+        .padding(24)
+        .frame(width: 460, height: 340)
+        .background(Theme.background)
     }
 
     private var intro: some View {
