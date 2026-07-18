@@ -86,8 +86,15 @@ struct SafePathsTests {
         #expect(!sut.isRemovable(u("/Users/tester/Library/Caches/../../../etc/passwd")))
     }
 
-    @Test func rejectsDeceptivePrefixSibling() {
-        #expect(!sut.isRemovable(u("/Users/tester/Library/Caches-evil/x")))
+    @Test func allowsFilesInsideHome() {
+        #expect(sut.isRemovable(u("/Users/tester/Downloads/big.dmg")))
+        #expect(sut.isRemovable(u("/Users/tester/Library/Safari/History.db")))
+    }
+
+    @Test func rejectsProtectedHomeRoots() {
+        #expect(!sut.isRemovable(u("/Users/tester/Downloads")))
+        #expect(!sut.isRemovable(u("/Users/tester/Documents")))
+        #expect(!sut.isRemovable(u("/Users/tester/Library/Keychains/login.keychain-db")))
     }
 
     @Test func rejectsAnotherUsersHome() {

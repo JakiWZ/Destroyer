@@ -59,8 +59,10 @@ public struct FileInsightScanner {
         for f in allFiles() where f.sizeBytes > 0 {
             bySize[f.sizeBytes, default: []].append(f)
         }
+        // Limite di performance: non calcolare l'hash di file enormi (lettura lenta).
+        let maxHashBytes: Int64 = 2 * 1024 * 1024 * 1024
         var groups: [DuplicateGroup] = []
-        for (_, candidates) in bySize where candidates.count > 1 {
+        for (size, candidates) in bySize where candidates.count > 1 && size <= maxHashBytes {
             var byHash: [String: [ScannedFile]] = [:]
             for f in candidates {
                 guard let h = hash(of: f.url) else { continue }

@@ -33,7 +33,10 @@ check(!sp.isRemovable(u("/Users/tester/Library")), "rifiuta la root Library stes
 check(!sp.isRemovable(u("/Applications")), "rifiuta /Applications stessa")
 check(!sp.isRemovable(u("/")), "rifiuta la radice del filesystem")
 check(!sp.isRemovable(u("/Users/tester/Library/Caches/../../../etc/passwd")), "rifiuta traversal fuori allowlist")
-check(!sp.isRemovable(u("/Users/tester/Library/Caches-evil/x")), "rifiuta prefisso ingannevole Caches-evil")
+check(sp.isRemovable(u("/Users/tester/Downloads/file.dmg")), "consente file dentro la home (Downloads)")
+check(sp.isRemovable(u("/Users/tester/Library/Safari/History.db")), "consente dati Safari nella home")
+check(!sp.isRemovable(u("/Users/tester/Downloads")), "rifiuta la cartella Downloads stessa")
+check(!sp.isRemovable(u("/Users/tester/Library/Keychains/x")), "rifiuta i Keychain")
 check(!sp.isRemovable(u("/Users/altro/Library/Caches/com.acme.App")), "rifiuta home di un altro utente")
 check(!sp.isRemovable(u("/usr/local/bin/brew")), "/usr/local non è comunque in allowlist")
 // Nuove posizioni di sistema legittime (rimovibili con autorizzazione admin)
@@ -183,6 +186,9 @@ check(dups.first?.files.filter { $0.isSelected }.count == 1, "propone la rimozio
 // TrashEmptier opera solo dentro ~/.Trash
 let te = TrashEmptier(home: spaceHome)
 check(te.size() >= 0, "dimensione Cestino leggibile")
+
+// MARK: - QA dal vivo (invarianti di sicurezza sugli scanner reali)
+failures += runLiveQA()
 
 // MARK: - Esito
 print("\n" + String(repeating: "─", count: 40))

@@ -52,46 +52,43 @@ public struct ThreatScanner {
 
         var reasons: [String] = []
         var severity: ThreatSeverity = .info
+        // Un segnale "forte" indica comportamento davvero sospetto. La sola assenza di firma
+        // NON è un segnale forte: troppi tool legittimi (dev, Homebrew, Docker…) non sono firmati.
+        // Senza almeno un segnale forte NON produciamo un finding (evita falsi positivi).
+        var strongSignal = false
 
-        // 0) Corrispondenza con un indicatore noto di adware/PUP.
+        // 0) Corrispondenza con un indicatore noto di adware/PUP. (forte)
         if let indicator = KnownAdwareIndicators.match(label: label, path: programPath) {
             reasons.append("Corrisponde a un indicatore noto di adware/PUP: \(indicator)")
-            severity = max(severity, .high)
+            severity = max(severity, .high); strongSignal = true
         }
 
-        // 1) Programma mancante (job orfano) — spesso residuo, a volte occultamento.
-        if let p = programPath, !fileManager.fileExists(atPath: p) {
-            reasons.append("L'eseguibile referenziato non esiste: \(p)")
-            severity = max(severity, .low)
-        }
-
-        // 2) Percorso in posizione anomala.
+        // 2) Percorso in posizione anomala (/tmp, cartelle nascoste…). (forte)
         if let p = programPath, isSuspiciousLocation(p) {
             reasons.append("Eseguibile in una posizione anomala: \(p)")
-            severity = max(severity, .high)
+            severity = max(severity, .high); strongSignal = true
         }
 
-        // 3) One-liner di shell negli argomenti (download/exec offuscato).
+        // 3) One-liner di shell negli argomenti (download/exec offuscato). (forte)
         if let bad = suspiciousArgument(arguments) {
             reasons.append("Comando sospetto negli argomenti: \(bad)")
-            severity = max(severity, .high)
+            severity = max(severity, .high); strongSignal = true
         }
 
-        // 4) Firma del codice non valida/assente (solo se il file esiste).
+        // Segnali "deboli": aggiungono contesto solo se c'è già un segnale forte.
+        if let p = programPath, !fileManager.fileExists(atPath: p) {
+            reasons.append("L'eseguibile referenziato non esiste: \(p)")
+        }
         if let p = programPath, fileManager.fileExists(atPath: p) {
             switch signer.inspect(path: p) {
-            case .unsigned:
-                reasons.append("Eseguibile non firmato o firma non valida")
-                severity = max(severity, .medium)
-            case .adhoc:
-                reasons.append("Firma ad-hoc (nessuna autorità verificabile)")
-                severity = max(severity, .low)
-            case .valid, .unknown:
-                break
+            case .unsigned: reasons.append("Eseguibile non firmato o firma non valida")
+            case .adhoc:    reasons.append("Firma ad-hoc (nessuna autorità verificabile)")
+            case .valid, .unknown: break
             }
         }
 
-        guard !reasons.isEmpty else { return nil }
+        // Nessun segnale forte → nessun allarme (riduce i falsi positivi come da lezione Malwarebytes).
+        guard strongSignal else { return nil }
 
         return ThreatFinding(
             title: label,

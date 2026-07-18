@@ -2,112 +2,102 @@ import Foundation
 
 /// Guardia di sicurezza: decide se un percorso può essere rimosso (spostato nel Cestino).
 ///
-/// Regole (fail-closed):
-/// 1. Il path deve essere **contenuto strettamente** dentro una delle "allowed root"
-///    (mai uguale alla root stessa: non svuotiamo `~/Library/Caches`).
-/// 2. Il path non deve trovarsi dentro nessuna "denied root" di sistema.
-/// 3. Nessun componente `..` (traversal) è ammesso.
+/// Modello (fail-closed):
+/// 1. Il path deve essere **contenuto strettamente** dentro un'area consentita
+///    (la HOME dell'utente, `/Applications`, o le directory di launch di `/Library`).
+/// 2. NON deve essere l'esatta radice di una directory protetta (non svuotiamo `~/Downloads`,
+///    `~/Library/Caches`, `/Applications`, ecc.: solo il loro contenuto).
+/// 3. NON deve trovarsi in un'area di sistema critica (denylist).
+/// 4. Nessun componente `..` (traversal).
 ///
-/// Il confronto avviene per **componenti di path standardizzati**, non per prefisso di
-/// stringa, così `~/Library/Caches` non "matcha" `~/Library/Caches-evil`.
+/// Il confronto avviene per **componenti di path standardizzati**, non per prefisso di stringa.
 public struct SafePaths {
 
-    private let homeURL: URL
-    private let allowedRoots: [URL]
-    private let deniedRoots: [URL]
+    private let home: URL
+    /// Contenitori dentro cui è lecito rimuovere (solo il contenuto, non la radice).
+    private let allowedRoots: [[String]]
+    /// Aree di sistema critiche: mai toccabili.
+    private let deniedRoots: [[String]]
+    /// Directory-radice protette: eliminabile il contenuto, non la cartella stessa.
+    private let protectedExact: Set<String>
 
-    /// - Parameter home: home directory dell'utente. Iniettabile per i test.
     public init(home: URL = FileManager.default.homeDirectoryForCurrentUser) {
-        self.homeURL = home.standardizedFileURL
+        let h = home.standardizedFileURL
+        self.home = h
+        let lib = h.appendingPathComponent("Library", isDirectory: true)
 
-        let lib = homeURL.appendingPathComponent("Library", isDirectory: true)
-        func h(_ c: String) -> URL { lib.appendingPathComponent(c, isDirectory: true) }
+        func sys(_ p: String) -> URL { URL(fileURLWithPath: p, isDirectory: true).standardizedFileURL }
 
-        self.allowedRoots = [
-            URL(fileURLWithPath: "/Applications", isDirectory: true),
-            homeURL.appendingPathComponent("Applications", isDirectory: true),
-            h("Caches"),
-            h("Preferences"),
-            h("Application Support"),
-            h("Containers"),
-            h("Group Containers"),
-            h("Logs"),
-            h("LaunchAgents"),
-            // Posizioni di sistema (root): richiedono autorizzazione admin per la rimozione,
-            // ma sono aree legittime dei residui di un'app. La denylist qui sotto le protegge
-            // comunque da /System, /Library/Apple, ecc.
-            URL(fileURLWithPath: "/Library/LaunchAgents", isDirectory: true),
-            URL(fileURLWithPath: "/Library/LaunchDaemons", isDirectory: true),
-            URL(fileURLWithPath: "/Library/PrivilegedHelperTools", isDirectory: true),
-            URL(fileURLWithPath: "/Library/Application Support", isDirectory: true),
-            URL(fileURLWithPath: "/Library/Caches", isDirectory: true),
-            URL(fileURLWithPath: "/Library/Logs", isDirectory: true),
-            URL(fileURLWithPath: "/Library/Preferences", isDirectory: true),
-            h("Saved Application State"),
-            h("Application Scripts"),
-            h("HTTPStorages"),
-            h("WebKit"),
-            h("Cookies")
-        ].map { $0.standardizedFileURL }
+        // 1) Contenitori consentiti.
+        let allowed: [URL] = [
+            h,                                                   // tutta la home dell'utente
+            sys("/Applications"),
+            sys("/Library/LaunchAgents"),
+            sys("/Library/LaunchDaemons"),
+            sys("/Library/PrivilegedHelperTools"),
+            sys("/Library/Application Support"),
+            sys("/Library/Caches"),
+            sys("/Library/Logs"),
+            sys("/Library/Preferences")
+        ]
+        self.allowedRoots = allowed.map { $0.pathComponents }
 
+        // 2) Sistema critico (denylist). /usr/local è ri-ammesso come eccezione.
         self.deniedRoots = [
-            "/System",
-            "/bin",
-            "/sbin",
-            "/usr",           // /usr/local viene ri-ammesso sotto
-            "/private/var",
-            "/private/etc",
-            "/Library/Apple",
-            "/Applications/Utilities"
-        ].map { URL(fileURLWithPath: $0, isDirectory: true).standardizedFileURL }
+            "/System", "/bin", "/sbin", "/usr", "/private/var", "/private/etc",
+            "/Library/Apple", "/Applications/Utilities"
+        ].map { sys($0).pathComponents } + [lib.appendingPathComponent("Keychains").pathComponents]
+
+        // 3) Directory-radice protette (non eliminabili, solo il loro contenuto).
+        var prot: Set<String> = [h.path, "/Applications",
+            "/Library/LaunchAgents", "/Library/LaunchDaemons", "/Library/PrivilegedHelperTools",
+            "/Library/Application Support", "/Library/Caches", "/Library/Logs", "/Library/Preferences"]
+        for top in ["Documents", "Downloads", "Desktop", "Movies", "Music", "Pictures",
+                    "Public", "Sites", "Applications", "Library", ".Trash"] {
+            prot.insert(h.appendingPathComponent(top).path)
+        }
+        for l in ["Caches", "Preferences", "Application Support", "Containers", "Group Containers",
+                  "Logs", "LaunchAgents", "Saved Application State", "Application Scripts",
+                  "HTTPStorages", "WebKit", "Cookies", "Developer", "Safari", "Mail",
+                  "Mail Downloads", "Keychains"] {
+            prot.insert(lib.appendingPathComponent(l).path)
+        }
+        self.protectedExact = prot
     }
 
-    /// Eccezioni: percorsi che, pur dentro una denied root, restano consentiti.
-    private static let deniedExceptions: [URL] = [
-        URL(fileURLWithPath: "/usr/local", isDirectory: true).standardizedFileURL
-    ]
+    private static let usrLocal = URL(fileURLWithPath: "/usr/local", isDirectory: true).standardizedFileURL.pathComponents
 
     /// Vero se `url` può essere rimosso in sicurezza.
     public func isRemovable(_ url: URL) -> Bool {
         let target = url.standardizedFileURL
         let comps = target.pathComponents
 
-        // Nessun traversal residuo dopo la standardizzazione.
         guard !comps.contains("..") else { return false }
-        // Mai la radice del filesystem.
         guard comps.count > 1 else { return false }
 
-        // 2. Dentro una denied root? (salvo eccezioni esplicite)
-        for denied in Self.deniedRoots(from: deniedRoots) {
-            if Self.isContained(comps, inOrEqualTo: denied) {
-                let allowedByException = Self.deniedExceptions.contains {
-                    Self.isContained(comps, inOrEqualTo: $0.pathComponents)
-                }
-                if !allowedByException { return false }
-            }
+        // 3) Area di sistema critica (salvo eccezione /usr/local).
+        for denied in deniedRoots where Self.contained(comps, in: denied) {
+            if !Self.contained(comps, in: Self.usrLocal) { return false }
         }
 
-        // 1. Strettamente dentro una allowed root (più profondo della root stessa).
-        for root in allowedRoots {
-            if Self.isStrictlyContained(comps, in: root.pathComponents) {
-                return true
-            }
+        // 2) Radice protetta: non eliminabile la cartella stessa.
+        if protectedExact.contains(target.path) { return false }
+
+        // 1) Strettamente dentro un contenitore consentito.
+        for root in allowedRoots where Self.strictlyContained(comps, in: root) {
+            return true
         }
         return false
     }
 
-    private static func deniedRoots(from urls: [URL]) -> [[String]] {
-        urls.map { $0.pathComponents }
-    }
-
-    /// `comps` è dentro `root` **o uguale** a `root`.
-    private static func isContained(_ comps: [String], inOrEqualTo root: [String]) -> Bool {
+    /// `comps` è dentro `root` (o uguale).
+    private static func contained(_ comps: [String], in root: [String]) -> Bool {
         guard comps.count >= root.count else { return false }
         return Array(comps.prefix(root.count)) == root
     }
 
-    /// `comps` è **strettamente** dentro `root` (almeno un componente più profondo).
-    private static func isStrictlyContained(_ comps: [String], in root: [String]) -> Bool {
+    /// `comps` è **strettamente** dentro `root` (almeno un livello più profondo).
+    private static func strictlyContained(_ comps: [String], in root: [String]) -> Bool {
         guard comps.count > root.count else { return false }
         return Array(comps.prefix(root.count)) == root
     }
