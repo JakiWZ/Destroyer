@@ -14,6 +14,7 @@ struct SpaceView: View {
                     spaceLens
                     largeOld
                     duplicates
+                    languageFiles
                     if selectedBytes > 0 { footer }
                 }
             }
@@ -32,31 +33,70 @@ struct SpaceView: View {
         }
     }
 
-    // MARK: - Space Lens (barre proporzionali)
+    // MARK: - Space Lens (barre proporzionali, navigabile)
     private var spaceLens: some View {
         VStack(alignment: .leading, spacing: 10) {
-            TechTag(text: "space lens")
-            let total = max(1, appState.spaceEntries.reduce(0) { $0 + $1.sizeBytes })
-            ForEach(appState.spaceEntries.prefix(10)) { e in
-                VStack(spacing: 3) {
-                    HStack {
-                        Image(systemName: e.isDirectory ? "folder.fill" : "doc.fill")
-                            .font(.system(size: 10)).foregroundStyle(Theme.accentSolid)
-                        Text(e.name).font(Theme.mono(12)).foregroundStyle(Theme.textPrimary).lineLimit(1)
-                        Spacer()
-                        Text(ByteSize.string(e.sizeBytes)).font(Theme.mono(11)).foregroundStyle(Theme.textSecondary)
-                    }
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(Theme.strokeStrong)
-                            Capsule().fill(Theme.accentGradient)
-                                .frame(width: max(3, geo.size.width * CGFloat(Double(e.sizeBytes) / Double(total))))
-                        }
-                    }.frame(height: 5)
+            HStack {
+                TechTag(text: "space lens")
+                Spacer()
+                if appState.canSpaceGoUp {
+                    Button { appState.spaceUp() } label: {
+                        Label("Su", systemImage: "arrow.up").font(Theme.mono(10))
+                    }.buttonStyle(.plain).foregroundStyle(Theme.accentSolid)
                 }
+            }
+            Text(appState.spaceRoot.path).font(Theme.mono(9)).foregroundStyle(Theme.textTertiary).lineLimit(1)
+            let total = max(1, appState.spaceEntries.reduce(0) { $0 + $1.sizeBytes })
+            ForEach(appState.spaceEntries.prefix(12)) { e in
+                Button { appState.drillInto(e) } label: {
+                    VStack(spacing: 3) {
+                        HStack {
+                            Image(systemName: e.isDirectory ? "folder.fill" : "doc.fill")
+                                .font(.system(size: 10)).foregroundStyle(Theme.accentSolid)
+                            Text(e.name).font(Theme.mono(12)).foregroundStyle(Theme.textPrimary).lineLimit(1)
+                            Spacer()
+                            Text(ByteSize.string(e.sizeBytes)).font(Theme.mono(11)).foregroundStyle(Theme.textSecondary)
+                            if e.isDirectory { Image(systemName: "chevron.right").font(.system(size: 8)).foregroundStyle(Theme.textTertiary) }
+                        }
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(Theme.strokeStrong)
+                                Capsule().fill(Theme.accentGradient)
+                                    .frame(width: max(3, geo.size.width * CGFloat(Double(e.sizeBytes) / Double(total))))
+                            }
+                        }.frame(height: 5)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(!e.isDirectory)
             }
         }
         .card(padding: 16)
+    }
+
+    // MARK: - File di lingua
+    private var languageFiles: some View {
+        Group {
+            if !appState.languageFiles.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        TechTag(text: "language files")
+                        Spacer()
+                        Text("delicato").font(Theme.mono(8, weight: .bold)).foregroundStyle(Theme.warning)
+                            .padding(.horizontal, 5).padding(.vertical, 2).background(Capsule().fill(Theme.warning.opacity(0.15)))
+                    }
+                    Text("Rimuovere le lingue inutilizzate può invalidare la firma di un'app (reversibile dal Cestino).")
+                        .font(.caption2).foregroundStyle(Theme.textTertiary)
+                    VStack(spacing: 0) {
+                        ForEach(appState.languageFiles.prefix(15)) { f in
+                            fileRow(selected: f.isSelected, name: "\(f.appName) · \(f.language)",
+                                    detail: f.url.path, size: f.sizeBytes) { appState.toggleLanguage(f) }
+                        }
+                    }.card(padding: 4)
+                }
+            }
+        }
     }
 
     // MARK: - File grandi/vecchi
@@ -127,6 +167,7 @@ struct SpaceView: View {
     private var selectedBytes: Int64 {
         appState.largeOldFiles.filter(\.isSelected).reduce(0) { $0 + $1.sizeBytes }
             + appState.duplicateGroups.flatMap { $0.files }.filter(\.isSelected).reduce(0) { $0 + $1.sizeBytes }
+            + appState.languageFiles.filter(\.isSelected).reduce(0) { $0 + $1.sizeBytes }
     }
 
     private var footer: some View {

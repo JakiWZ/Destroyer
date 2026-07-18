@@ -367,30 +367,64 @@ final class AppState: ObservableObject {
         undoneCount = nil
     }
 
-    // MARK: - Spazio (Space Lens, file grandi/vecchi, duplicati)
+    // MARK: - Spazio (Space Lens, file grandi/vecchi, duplicati, lingue)
     private let spaceLens = SpaceLensScanner()
     private let fileInsight = FileInsightScanner()
+    private let languageScanner = LanguageScanner()
     @Published var spaceEntries: [SpaceEntry] = []
     @Published var largeOldFiles: [ScannedFile] = []
     @Published var duplicateGroups: [DuplicateGroup] = []
+    @Published var languageFiles: [LanguageFile] = []
     @Published var isScanningSpace = false
+    /// Radice corrente di Space Lens (navigabile).
+    @Published var spaceRoot: URL = FileManager.default.homeDirectoryForCurrentUser
 
     func scanSpace() {
         isScanningSpace = true
-        let lens = spaceLens
-        let insight = fileInsight
-        let home = FileManager.default.homeDirectoryForCurrentUser
+        let lens = spaceLens, insight = fileInsight, langs = languageScanner
+        let root = spaceRoot
         Task {
-            let entries = await Task.detached { lens.breakdown(of: home) }.value
+            let entries = await Task.detached { lens.breakdown(of: root) }.value
             let large = await Task.detached { insight.largeOrOld() }.value
             let dups = await Task.detached { insight.duplicates() }.value
+            let langFiles = await Task.detached { langs.scan() }.value
             await MainActor.run {
                 self.spaceEntries = entries
                 self.largeOldFiles = large
                 self.duplicateGroups = dups
+                self.languageFiles = langFiles
                 self.isScanningSpace = false
             }
         }
+    }
+
+    /// Naviga dentro una cartella nella mappa spazio.
+    func drillInto(_ entry: SpaceEntry) {
+        guard entry.isDirectory else { return }
+        spaceRoot = entry.url
+        rescanSpaceLens()
+    }
+
+    /// Risale alla cartella superiore.
+    func spaceUp() {
+        let parent = spaceRoot.deletingLastPathComponent()
+        guard parent.path.count > 1 else { return }
+        spaceRoot = parent
+        rescanSpaceLens()
+    }
+
+    var canSpaceGoUp: Bool { spaceRoot.path != "/" && spaceRoot.pathComponents.count > 1 }
+
+    private func rescanSpaceLens() {
+        let lens = spaceLens, root = spaceRoot
+        Task {
+            let entries = await Task.detached { lens.breakdown(of: root) }.value
+            await MainActor.run { self.spaceEntries = entries }
+        }
+    }
+
+    func toggleLanguage(_ file: LanguageFile) {
+        if let i = languageFiles.firstIndex(where: { $0.id == file.id }) { languageFiles[i].isSelected.toggle() }
     }
 
     func toggleLargeOld(_ file: ScannedFile) {
@@ -406,10 +440,11 @@ final class AppState: ObservableObject {
         }
     }
 
-    /// Sposta nel Cestino i file selezionati (grandi/vecchi + duplicati).
+    /// Sposta nel Cestino i file selezionati (grandi/vecchi + duplicati + lingue).
     func trashSelectedFiles() {
         let urls = largeOldFiles.filter(\.isSelected).map(\.url)
             + duplicateGroups.flatMap { $0.files }.filter(\.isSelected).map(\.url)
+            + languageFiles.filter(\.isSelected).map(\.url)
         guard !urls.isEmpty else { return }
         let trash = self.trash
         Task {
@@ -497,6 +532,11 @@ final class AppState: ObservableObject {
                 self.isSmartScanning = false
             }
         }
+    }
+
+    /// "Correggi tutto" dallo Smart Scan: pulisce il junk trovato e aggiorna lo stato.
+    func fixAll() {
+        cleanJunk()
     }
 
     // MARK: - Manutenzione

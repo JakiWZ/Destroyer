@@ -39,7 +39,12 @@ struct DashboardView: View {
                     Text(smartLabel(r.healthScore)).font(.headline).foregroundStyle(Theme.textPrimary)
                     Text("Junk \(ByteSize.string(r.junkBytes)) · \(r.threatCount) minacce · \(r.startupCount) avvii")
                         .font(Theme.mono(11)).foregroundStyle(Theme.textSecondary)
-                    GhostButton(title: "Riesegui", systemImage: "arrow.clockwise") { appState.smartScan() }
+                    HStack(spacing: 10) {
+                        if r.junkBytes > 0 {
+                            AccentButton(title: "Correggi tutto", systemImage: "wand.and.stars") { appState.fixAll() }
+                        }
+                        GhostButton(title: "Riesegui", systemImage: "arrow.clockwise") { appState.smartScan() }
+                    }
                 }
             } else {
                 VStack(alignment: .leading, spacing: 8) {

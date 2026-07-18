@@ -43,7 +43,10 @@ public struct PrivacyScanner {
             .init(browser: "Brave", kind: "Cache", relPath: "Library/Caches/BraveSoftware/Brave-Browser"),
             .init(browser: "Brave", kind: "Cookie", relPath: "Library/Application Support/BraveSoftware/Brave-Browser/Default/Cookies"),
             .init(browser: "Edge", kind: "Cache", relPath: "Library/Caches/Microsoft Edge"),
-            .init(browser: "Firefox", kind: "Cache", relPath: "Library/Caches/Firefox")
+            .init(browser: "Firefox", kind: "Cache", relPath: "Library/Caches/Firefox"),
+            // Privacy di sistema.
+            .init(browser: "Sistema", kind: "Elementi recenti", relPath: "Library/Application Support/com.apple.sharedfilelist"),
+            .init(browser: "Sistema", kind: "Cache QuickLook", relPath: "Library/Caches/com.apple.QuickLook.thumbnailcache")
         ]
     }
 
