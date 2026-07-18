@@ -1,0 +1,6 @@
+{
+  "_comment": "Database curato open source: versione più recente nota per app SENZA sistema di aggiornamento (né App Store, né Sparkle, né Homebrew). Chiave = CFBundleIdentifier. Contribuisci con una PR aggiornando 'version' e 'url'. Nota: i valori qui sono solo esempi/seed e vanno mantenuti aggiornati dalla community.",
+  "apps": {
+    "com.example.SampleApp": { "name": "Sample App", "version": "1.0.0", "url": "https://example.com/download" }
+  }
+}

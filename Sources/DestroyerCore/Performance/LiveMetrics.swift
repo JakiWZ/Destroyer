@@ -11,9 +11,16 @@ public final class LiveMetrics: @unchecked Sendable {
 
     private var prevTotal: UInt64 = 0
     private var prevIdle: UInt64 = 0
+    private var prevNetBytes: UInt64 = 0
+    private var prevNetTime: Date = .distantPast
     private let lock = NSLock()
 
     public init() {}
+
+    public struct Network: Sendable {
+        public let bytesPerSecDown: Double
+        public let bytesPerSecUp: Double
+    }
 
     public struct Battery: Sendable {
         public let level: Double      // 0–1
@@ -47,6 +54,37 @@ public final class LiveMetrics: @unchecked Sendable {
         return min(1, max(0, Double(totalDelta - idleDelta) / Double(totalDelta)))
         #else
         return 0
+        #endif
+    }
+
+    /// Throughput di rete complessivo (delta dei contatori delle interfacce).
+    public func network() -> Network {
+        #if canImport(Darwin)
+        var totalBytes: UInt64 = 0
+        var ifap: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&ifap) == 0 else { return Network(bytesPerSecDown: 0, bytesPerSecUp: 0) }
+        defer { freeifaddrs(ifap) }
+        var ptr = ifap
+        while let cur = ptr {
+            if let addr = cur.pointee.ifa_addr, addr.pointee.sa_family == UInt8(AF_LINK),
+               let data = cur.pointee.ifa_data {
+                let d = data.assumingMemoryBound(to: if_data.self)
+                totalBytes += UInt64(d.pointee.ifi_ibytes) + UInt64(d.pointee.ifi_obytes)
+            }
+            ptr = cur.pointee.ifa_next
+        }
+
+        lock.lock(); defer { lock.unlock() }
+        let now = Date()
+        let dt = now.timeIntervalSince(prevNetTime)
+        let delta = totalBytes >= prevNetBytes ? totalBytes - prevNetBytes : 0
+        prevNetBytes = totalBytes; prevNetTime = now
+        guard dt > 0, dt < 30 else { return Network(bytesPerSecDown: 0, bytesPerSecUp: 0) }
+        let rate = Double(delta) / dt
+        // Non distinguiamo down/up in aggregato: riportiamo il totale come "down".
+        return Network(bytesPerSecDown: rate, bytesPerSecUp: 0)
+        #else
+        return Network(bytesPerSecDown: 0, bytesPerSecUp: 0)
         #endif
     }
 

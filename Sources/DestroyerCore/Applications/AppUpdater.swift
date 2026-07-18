@@ -108,8 +108,25 @@ public struct AppUpdater {
         if let feed = (info["SUFeedURL"] as? String).flatMap(URL.init) {
             return await checkSparkle(name: name, feed: feed, current: current)
         }
+
+        // App "manuali" senza update: database curato (per bundle id).
+        if let bundleID = info["CFBundleIdentifier"] as? String,
+           let known = Self.curatedDB[bundleID],
+           let latest = known["version"], isNewer(latest, than: current) {
+            return AppUpdate(name: name, currentVersion: current, latestVersion: latest,
+                             source: .sparkle, url: known["url"].flatMap(URL.init))
+        }
         return nil
     }
+
+    /// Database curato caricato dal bundle (chiave = bundle id → {version, url}).
+    private static let curatedDB: [String: [String: String]] = {
+        guard let url = Bundle.main.url(forResource: "known-app-versions", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let apps = json["apps"] as? [String: [String: String]] else { return [:] }
+        return apps
+    }()
 
     private func checkAppStore(name: String, bundleID: String, current: String) async -> AppUpdate? {
         guard let url = URL(string: "https://itunes.apple.com/lookup?bundleId=\(bundleID)") else { return nil }

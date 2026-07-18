@@ -51,6 +51,15 @@ public struct JunkScanner {
             name: "Log", icon: "doc.text"
         ) { groups.append(logs) }
 
+        // Allegati Mail scaricati.
+        for rel in ["Library/Mail Downloads",
+                    "Library/Containers/com.apple.mail/Data/Library/Mail Downloads"] {
+            if let g = groupFromChildren(of: home.appendingPathComponent(rel, isDirectory: true),
+                                         name: "Allegati Mail", icon: "paperclip") {
+                groups.append(g)
+            }
+        }
+
         // Junk di sviluppo (Xcode) — ricreabile, sicuro da rimuovere.
         let dev = lib.appendingPathComponent("Developer", isDirectory: true)
         for (rel, name) in [

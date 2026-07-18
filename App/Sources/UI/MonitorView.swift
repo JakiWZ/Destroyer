@@ -30,6 +30,8 @@ struct MonitorView: View {
                                  value: ByteSize.string(s.diskAvailableBytes), fraction: s.diskUsedFraction)
                         StatTile(icon: "memorychip", title: "RAM USATA",
                                  value: ByteSize.string(s.ramUsedBytes), fraction: s.ramUsedFraction)
+                        StatTile(icon: "network", title: "RETE",
+                                 value: "\(ByteSize.string(Int64(appState.netDownRate)))/s")
                         if let b = appState.battery, b.isPresent {
                             StatTile(icon: b.isCharging ? "battery.100.bolt" : "battery.75",
                                      title: "BATTERIA", value: "\(Int(b.level * 100))%",

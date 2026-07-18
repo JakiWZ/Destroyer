@@ -570,13 +570,15 @@ final class AppState: ObservableObject {
     private let liveMetrics = LiveMetrics()
     @Published var cpuUsage: Double = 0
     @Published var battery: LiveMetrics.Battery?
+    @Published var netDownRate: Double = 0
 
     func refreshLive() {
         let m = liveMetrics
         Task {
             let cpu = await Task.detached { m.cpuUsage() }.value
             let bat = await Task.detached { m.battery() }.value
-            await MainActor.run { self.cpuUsage = cpu; self.battery = bat }
+            let net = await Task.detached { m.network() }.value
+            await MainActor.run { self.cpuUsage = cpu; self.battery = bat; self.netDownRate = net.bytesPerSecDown }
         }
     }
 
