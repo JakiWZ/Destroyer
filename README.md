@@ -1,5 +1,9 @@
 # Destroyer
 
+[![CI](https://github.com/JakiWZ/Destroyer/actions/workflows/ci.yml/badge.svg)](https://github.com/JakiWZ/Destroyer/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/macOS-14%2B-black?logo=apple)
+
 Utility nativa macOS (Swift + SwiftUI) — **open source (MIT)**, pensata per funzionare
 su **qualsiasi Mac** (macOS 14+, Apple Silicon e Intel). Nessun percorso legato a un utente
 specifico: tutto usa le API di sistema.
