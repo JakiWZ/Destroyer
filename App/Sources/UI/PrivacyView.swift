@@ -20,6 +20,8 @@ struct PrivacyView: View {
                     footer
                 }
                 wifiSection
+                tccSection
+                networkSection
             }
             .padding(28)
         }
@@ -27,6 +29,57 @@ struct PrivacyView: View {
         .onAppear {
             if appState.privacyItems.isEmpty { appState.scanPrivacy() }
             if appState.wifiNetworks.isEmpty { appState.scanWiFi() }
+            if appState.tccEntries.isEmpty { appState.scanTCC() }
+            if appState.connections.isEmpty { appState.scanConnections() }
+        }
+    }
+
+    @ViewBuilder
+    private var tccSection: some View {
+        if !appState.tccEntries.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                TechTag(text: "app permissions (TCC)")
+                Text("Quali app hanno accesso a fotocamera, microfono, disco, ecc.")
+                    .font(.caption2).foregroundStyle(Theme.textTertiary)
+                VStack(spacing: 0) {
+                    ForEach(appState.tccEntries.filter(\.granted).prefix(30)) { e in
+                        HStack(spacing: 10) {
+                            Image(systemName: "lock.shield").foregroundStyle(Theme.accentSolid)
+                            Text(e.client).font(Theme.mono(11)).foregroundStyle(Theme.textPrimary).lineLimit(1)
+                            Spacer()
+                            Text(e.service).font(Theme.mono(10)).foregroundStyle(Theme.textSecondary)
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 7)
+                    }
+                }.card(padding: 4)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var networkSection: some View {
+        if !appState.connections.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    TechTag(text: "network connections")
+                    Spacer()
+                    Button { appState.scanConnections() } label: { Image(systemName: "arrow.clockwise").font(.system(size: 11)) }
+                        .buttonStyle(.plain).foregroundStyle(Theme.accentSolid)
+                }
+                Text("Connessioni attive: chi sta comunicando in rete (sola lettura).")
+                    .font(.caption2).foregroundStyle(Theme.textTertiary)
+                VStack(spacing: 0) {
+                    ForEach(appState.connections.prefix(30)) { c in
+                        HStack(spacing: 10) {
+                            Image(systemName: "network").foregroundStyle(Theme.accentSolid)
+                            Text(c.process).font(Theme.mono(11, weight: .semibold)).foregroundStyle(Theme.textPrimary).lineLimit(1)
+                            Spacer()
+                            Text(c.remote).font(Theme.mono(10)).foregroundStyle(Theme.textSecondary).lineLimit(1)
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 7)
+                    }
+                }.card(padding: 4)
+            }
         }
     }
 

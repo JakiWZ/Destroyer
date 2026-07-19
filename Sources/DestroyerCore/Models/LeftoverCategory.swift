@@ -18,6 +18,12 @@ public enum LeftoverCategory: String, CaseIterable, Codable, Sendable {
     case httpStorages
     case webKit
     case cookies
+    case preferencePanes
+    case quickLook
+    case spotlight
+    case services
+    case screenSavers
+    case internetPlugins
 
     /// Etichetta leggibile per la UI (in italiano, coerente con l'app).
     public var displayName: String {
@@ -37,6 +43,12 @@ public enum LeftoverCategory: String, CaseIterable, Codable, Sendable {
         case .httpStorages:       return "HTTP Storage"
         case .webKit:             return "WebKit"
         case .cookies:            return "Cookie"
+        case .preferencePanes:    return "Pannello preferenze"
+        case .quickLook:          return "Plugin QuickLook"
+        case .spotlight:          return "Spotlight importer"
+        case .services:           return "Servizio"
+        case .screenSavers:       return "Screen Saver"
+        case .internetPlugins:    return "Internet Plug-in"
         }
     }
 }

@@ -16,12 +16,31 @@ struct DashboardView: View {
         .techGridBackground()
     }
 
+    @State private var showHistory = false
+
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            TechTag(text: "system status")
-            Text("Stato del tuo Mac")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(Theme.textPrimary)
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                TechTag(text: "system status")
+                Text("Stato del tuo Mac")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(Theme.textPrimary)
+            }
+            Spacer()
+            HStack(spacing: 8) {
+                GhostButton(title: "Cronologia", systemImage: "clock.arrow.circlepath") { showHistory = true }
+                GhostButton(title: "Report", systemImage: "square.and.arrow.up") { exportReport() }
+            }
+        }
+        .sheet(isPresented: $showHistory) { HistoryView() }
+    }
+
+    private func exportReport() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "destroyer-report.md"
+        panel.allowedContentTypes = [.plainText]
+        if panel.runModal() == .OK, let url = panel.url {
+            appState.exportReport(to: url)
         }
     }
 

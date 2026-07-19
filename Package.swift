@@ -10,7 +10,9 @@ let package = Package(
         .library(name: "DestroyerCore", targets: ["DestroyerCore"]),
         // Verifica eseguibile sotto Command Line Tools (dove XCTest/Testing non girano).
         // In Xcode usare invece la suite in Tests/DestroyerCoreTests (swift-testing).
-        .executable(name: "destroyer-verify", targets: ["DestroyerVerify"])
+        .executable(name: "destroyer-verify", targets: ["DestroyerVerify"]),
+        // CLI headless per scansioni/report scriptabili e schedulazione vera.
+        .executable(name: "destroyer", targets: ["DestroyerCLI"])
     ],
     targets: [
         .target(
@@ -21,6 +23,11 @@ let package = Package(
             name: "DestroyerVerify",
             dependencies: ["DestroyerCore"],
             path: "Sources/DestroyerVerify"
+        ),
+        .executableTarget(
+            name: "DestroyerCLI",
+            dependencies: ["DestroyerCore"],
+            path: "Sources/DestroyerCLI"
         ),
         .testTarget(
             name: "DestroyerCoreTests",

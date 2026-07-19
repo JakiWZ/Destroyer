@@ -125,6 +125,16 @@ struct ProtectionView: View {
         .padding(16).frame(width: 340)
     }
 
+    private func addExclusion() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = true
+        panel.allowsMultipleSelection = false
+        if panel.runModal() == .OK, let url = panel.url {
+            appState.addExclusion(url.path)
+        }
+    }
+
     // MARK: - Impostazioni (rotellina)
 
     private var settingsSheet: some View {
@@ -155,6 +165,29 @@ struct ProtectionView: View {
             Divider().overlay(Theme.stroke)
 
             VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Esclusioni").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+                    Spacer()
+                    Button { addExclusion() } label: { Image(systemName: "plus.circle") }.buttonStyle(.plain).foregroundStyle(Theme.accentSolid)
+                }
+                Text("Cartelle protette: mai rimosse dalle pulizie.").font(.caption).foregroundStyle(Theme.textSecondary)
+                if appState.exclusions.isEmpty {
+                    Text("Nessuna esclusione.").font(.caption2).foregroundStyle(Theme.textTertiary)
+                } else {
+                    ForEach(appState.exclusions, id: \.self) { path in
+                        HStack {
+                            Text(path).font(Theme.mono(9)).foregroundStyle(Theme.textSecondary).lineLimit(1)
+                            Spacer()
+                            Button { appState.removeExclusion(path) } label: { Image(systemName: "minus.circle") }
+                                .buttonStyle(.plain).foregroundStyle(Theme.warning)
+                        }
+                    }
+                }
+            }
+
+            Divider().overlay(Theme.stroke)
+
+            VStack(alignment: .leading, spacing: 6) {
                 Text("Disinstalla completamente").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
                 Text("Disattiva il monitoraggio e azzera tutte le impostazioni e i risultati della Protezione.")
                     .font(.caption).foregroundStyle(Theme.textSecondary)
@@ -170,7 +203,7 @@ struct ProtectionView: View {
             }
         }
         .padding(24)
-        .frame(width: 460, height: 460)
+        .frame(width: 460, height: 600)
         .background(Theme.background)
     }
 

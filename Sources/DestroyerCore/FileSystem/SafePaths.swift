@@ -38,7 +38,13 @@ public struct SafePaths {
             sys("/Library/Application Support"),
             sys("/Library/Caches"),
             sys("/Library/Logs"),
-            sys("/Library/Preferences")
+            sys("/Library/Preferences"),
+            sys("/Library/PreferencePanes"),
+            sys("/Library/QuickLook"),
+            sys("/Library/Spotlight"),
+            sys("/Library/Services"),
+            sys("/Library/Screen Savers"),
+            sys("/Library/Internet Plug-Ins")
         ]
         self.allowedRoots = allowed.map { $0.pathComponents }
 
@@ -51,7 +57,9 @@ public struct SafePaths {
         // 3) Directory-radice protette (non eliminabili, solo il loro contenuto).
         var prot: Set<String> = [h.path, "/Applications",
             "/Library/LaunchAgents", "/Library/LaunchDaemons", "/Library/PrivilegedHelperTools",
-            "/Library/Application Support", "/Library/Caches", "/Library/Logs", "/Library/Preferences"]
+            "/Library/Application Support", "/Library/Caches", "/Library/Logs", "/Library/Preferences",
+            "/Library/PreferencePanes", "/Library/QuickLook", "/Library/Spotlight",
+            "/Library/Services", "/Library/Screen Savers", "/Library/Internet Plug-Ins"]
         for top in ["Documents", "Downloads", "Desktop", "Movies", "Music", "Pictures",
                     "Public", "Sites", "Applications", "Library", ".Trash"] {
             prot.insert(h.appendingPathComponent(top).path)

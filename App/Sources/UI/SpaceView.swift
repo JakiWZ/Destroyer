@@ -14,6 +14,7 @@ struct SpaceView: View {
                     spaceLens
                     largeOld
                     duplicates
+                    similarPhotos
                     languageFiles
                     universalBinaries
                     if selectedBytes > 0 { footer }
@@ -25,6 +26,7 @@ struct SpaceView: View {
         .onAppear {
             if appState.spaceEntries.isEmpty { appState.scanSpace() }
             if appState.fatBinaries.isEmpty { appState.scanFatBinaries() }
+            if appState.photoGroups.isEmpty { appState.scanPhotos() }
         }
     }
 
@@ -147,6 +149,35 @@ struct SpaceView: View {
                                 }
                             }
                         }.card(padding: 4)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var similarPhotos: some View {
+        if !appState.photoGroups.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                TechTag(text: "similar photos")
+                ForEach(appState.photoGroups.prefix(10)) { g in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(g.photos.count) simili · recuperabili \(ByteSize.string(g.reclaimableBytes))")
+                            .font(Theme.mono(10)).foregroundStyle(Theme.accentSolid)
+                        VStack(spacing: 0) {
+                            ForEach(g.photos) { p in
+                                fileRow(selected: p.isSelected, name: p.url.lastPathComponent,
+                                        detail: p.url.deletingLastPathComponent().path, size: p.sizeBytes) {
+                                    appState.togglePhoto(groupID: g.id, fileID: p.id)
+                                }
+                            }
+                        }.card(padding: 4)
+                    }
+                }
+                if appState.photoGroups.contains(where: { $0.photos.contains(where: \.isSelected) }) {
+                    HStack {
+                        Spacer()
+                        AccentButton(title: "Rimuovi foto selezionate", systemImage: "trash") { appState.trashSelectedPhotos() }
                     }
                 }
             }

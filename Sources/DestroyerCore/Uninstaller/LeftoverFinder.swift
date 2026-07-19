@@ -42,6 +42,13 @@ public struct LeftoverFinder {
             Location(url: h("HTTPStorages"),             category: .httpStorages),
             Location(url: h("WebKit"),                   category: .webKit),
             Location(url: h("Cookies"),                  category: .cookies),
+            // Plugin e componenti (utente)
+            Location(url: h("PreferencePanes"),          category: .preferencePanes),
+            Location(url: h("QuickLook"),                category: .quickLook),
+            Location(url: h("Spotlight"),                category: .spotlight),
+            Location(url: h("Services"),                 category: .services),
+            Location(url: h("Screen Savers"),            category: .screenSavers),
+            Location(url: h("Internet Plug-Ins"),        category: .internetPlugins),
             // Aree di sistema (/Library) — root, richiedono autorizzazione admin
             Location(url: s("/Library/LaunchAgents"),          category: .launchAgents),
             Location(url: s("/Library/LaunchDaemons"),         category: .launchDaemons),
@@ -49,7 +56,13 @@ public struct LeftoverFinder {
             Location(url: s("/Library/Application Support"),   category: .appSupport),
             Location(url: s("/Library/Caches"),                category: .caches),
             Location(url: s("/Library/Logs"),                  category: .logs),
-            Location(url: s("/Library/Preferences"),           category: .preferences)
+            Location(url: s("/Library/Preferences"),           category: .preferences),
+            Location(url: s("/Library/PreferencePanes"),       category: .preferencePanes),
+            Location(url: s("/Library/QuickLook"),             category: .quickLook),
+            Location(url: s("/Library/Spotlight"),             category: .spotlight),
+            Location(url: s("/Library/Services"),              category: .services),
+            Location(url: s("/Library/Screen Savers"),         category: .screenSavers),
+            Location(url: s("/Library/Internet Plug-Ins"),     category: .internetPlugins)
         ]
     }
 

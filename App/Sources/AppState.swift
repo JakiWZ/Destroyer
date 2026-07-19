@@ -208,13 +208,14 @@ final class AppState: ObservableObject {
     var junkSelectedBytes: Int64 { junkGroups.reduce(0) { $0 + $1.selectedBytes } }
 
     func cleanJunk() {
-        let urls = junkGroups.flatMap { $0.items }.filter(\.isSelected).map(\.url)
+        let urls = notExcluded(junkGroups.flatMap { $0.items }.filter(\.isSelected).map(\.url))
         guard !urls.isEmpty else { return }
         let reclaimable = junkSelectedBytes
         let trash = self.trash
         Task {
             let outcome = await Task.detached { trash.trashAll(urls) }.value
             await MainActor.run {
+                self.recordHistory("Pulizia junk", moves: outcome.moves)
                 self.junkCleanedBytes = outcome.trashed.isEmpty ? 0 : reclaimable
                 self.scanJunk()
                 self.refreshStatus()
@@ -329,6 +330,7 @@ final class AppState: ObservableObject {
                 coordinator.remove(items, app: app)
             }.value
             await MainActor.run {
+                self.recordHistory("Disinstallazione \(name)", moves: outcome.moves)
                 self.lastOutcome = RemovalSummary(
                     appName: name,
                     trashedCount: outcome.totalTrashed,
@@ -365,6 +367,112 @@ final class AppState: ObservableObject {
         scan = nil
         lastOutcome = nil
         undoneCount = nil
+    }
+
+    // MARK: - Esclusioni (protezione dell'utente da rimozioni indesiderate)
+    private static let exclusionsKey = "exclusions.paths"
+    @Published var exclusions: [String] = UserDefaults.standard.stringArray(forKey: "exclusions.paths") ?? []
+
+    func isExcluded(_ url: URL) -> Bool { exclusions.contains { url.path == $0 || url.path.hasPrefix($0 + "/") } }
+    func addExclusion(_ path: String) {
+        guard !exclusions.contains(path) else { return }
+        exclusions.append(path); UserDefaults.standard.set(exclusions, forKey: Self.exclusionsKey)
+    }
+    func removeExclusion(_ path: String) {
+        exclusions.removeAll { $0 == path }; UserDefaults.standard.set(exclusions, forKey: Self.exclusionsKey)
+    }
+    private func notExcluded(_ urls: [URL]) -> [URL] { urls.filter { !isExcluded($0) } }
+
+    // MARK: - Cronologia rimozioni (con ripristino)
+    struct HistoryEntry: Codable, Identifiable {
+        var id = UUID()
+        let date: Date
+        let summary: String
+        let moves: [[String]]   // [original, inTrash]
+    }
+    private static let historyKey = "removal.history"
+    @Published var history: [HistoryEntry] = {
+        guard let data = UserDefaults.standard.data(forKey: "removal.history"),
+              let h = try? JSONDecoder().decode([HistoryEntry].self, from: data) else { return [] }
+        return h
+    }()
+
+    private func recordHistory(_ summary: String, moves: [RemovalOutcome.Move]) {
+        guard !moves.isEmpty else { return }
+        let entry = HistoryEntry(date: Date(), summary: summary, moves: moves.map { [$0.original.path, $0.inTrash.path] })
+        history.insert(entry, at: 0)
+        if history.count > 50 { history = Array(history.prefix(50)) }
+        if let data = try? JSONEncoder().encode(history) { UserDefaults.standard.set(data, forKey: Self.historyKey) }
+    }
+
+    /// Ripristina dalla cronologia gli elementi di una voce (dal Cestino alla posizione originale).
+    func restoreHistory(_ entry: HistoryEntry) {
+        let moves = entry.moves.compactMap { pair -> RemovalOutcome.Move? in
+            guard pair.count == 2 else { return nil }
+            return RemovalOutcome.Move(original: URL(fileURLWithPath: pair[0]), inTrash: URL(fileURLWithPath: pair[1]))
+        }
+        let trash = self.trash
+        Task {
+            _ = await Task.detached { trash.undo(moves) }.value
+            await MainActor.run {
+                self.history.removeAll { $0.id == entry.id }
+                if let data = try? JSONEncoder().encode(self.history) { UserDefaults.standard.set(data, forKey: Self.historyKey) }
+                self.refreshStatus()
+            }
+        }
+    }
+
+    // MARK: - TCC (permessi privacy) + Rete + Foto simili
+    private let tccViewer = TCCViewer()
+    private let networkMonitor = NetworkMonitor()
+    private let photoScanner = PhotoScanner()
+    @Published var tccEntries: [TCCEntry] = []
+    @Published var connections: [Connection] = []
+    @Published var photoGroups: [SimilarPhotoGroup] = []
+    @Published var isScanningPhotos = false
+
+    func scanTCC() {
+        let v = tccViewer
+        Task { let e = await Task.detached { v.entries() }.value; await MainActor.run { self.tccEntries = e } }
+    }
+    func scanConnections() {
+        let m = networkMonitor
+        Task { let c = await Task.detached { m.connections() }.value; await MainActor.run { self.connections = c } }
+    }
+    func scanPhotos() {
+        isScanningPhotos = true
+        let s = photoScanner
+        Task {
+            let g = await Task.detached { s.scan() }.value
+            await MainActor.run { self.photoGroups = g; self.isScanningPhotos = false }
+        }
+    }
+    func togglePhoto(groupID: UUID, fileID: URL) {
+        if let g = photoGroups.firstIndex(where: { $0.id == groupID }),
+           let f = photoGroups[g].photos.firstIndex(where: { $0.id == fileID }) {
+            photoGroups[g].photos[f].isSelected.toggle()
+        }
+    }
+    func trashSelectedPhotos() {
+        let urls = notExcluded(photoGroups.flatMap { $0.photos }.filter(\.isSelected).map(\.url))
+        guard !urls.isEmpty else { return }
+        let trash = self.trash
+        Task {
+            let outcome = await Task.detached { trash.trashAll(urls) }.value
+            await MainActor.run { self.recordHistory("Foto simili", moves: outcome.moves); self.scanPhotos(); self.refreshStatus() }
+        }
+    }
+
+    // MARK: - Report esportabile
+    func exportReport(to url: URL) {
+        let junk = junkGroups.reduce(0) { $0 + $1.totalBytes }
+        let dupes = duplicateGroups.reduce(0) { $0 + $1.reclaimableBytes }
+        var s = "# Report Destroyer\n\n"
+        s += "_Generato: \(Date().formatted())_\n\n"
+        if let r = smartResult { s += "- **Salute:** \(r.healthScore)/100\n" }
+        s += "- **Junk:** \(ByteSize.string(junk))\n- **Duplicati recuperabili:** \(ByteSize.string(dupes))\n"
+        s += "- **Minacce:** \(findings.count)\n- **Elementi di avvio:** \(loginItems.count)\n"
+        try? s.data(using: .utf8)?.write(to: url)
     }
 
     // MARK: - Spazio (Space Lens, file grandi/vecchi, duplicati, lingue)
@@ -442,14 +550,15 @@ final class AppState: ObservableObject {
 
     /// Sposta nel Cestino i file selezionati (grandi/vecchi + duplicati + lingue).
     func trashSelectedFiles() {
-        let urls = largeOldFiles.filter(\.isSelected).map(\.url)
-            + duplicateGroups.flatMap { $0.files }.filter(\.isSelected).map(\.url)
-            + languageFiles.filter(\.isSelected).map(\.url)
+        let largeURLs: [URL] = largeOldFiles.filter(\.isSelected).map(\.url)
+        let dupURLs: [URL] = duplicateGroups.flatMap { $0.files }.filter(\.isSelected).map(\.url)
+        let langURLs: [URL] = languageFiles.filter(\.isSelected).map(\.url)
+        let urls = notExcluded(largeURLs + dupURLs + langURLs)
         guard !urls.isEmpty else { return }
         let trash = self.trash
         Task {
-            _ = await Task.detached { trash.trashAll(urls) }.value
-            await MainActor.run { self.scanSpace(); self.refreshStatus() }
+            let outcome = await Task.detached { trash.trashAll(urls) }.value
+            await MainActor.run { self.recordHistory("Spazio", moves: outcome.moves); self.scanSpace(); self.refreshStatus() }
         }
     }
 
@@ -578,12 +687,12 @@ final class AppState: ObservableObject {
     var privacySelectedBytes: Int64 { privacyItems.filter(\.isSelected).reduce(0) { $0 + $1.sizeBytes } }
 
     func clearPrivacy() {
-        let urls = privacyItems.filter(\.isSelected).map(\.url)
+        let urls = notExcluded(privacyItems.filter(\.isSelected).map(\.url))
         guard !urls.isEmpty else { return }
         let trash = self.trash
         Task {
-            _ = await Task.detached { trash.trashAll(urls) }.value
-            await MainActor.run { self.scanPrivacy(); self.refreshStatus() }
+            let outcome = await Task.detached { trash.trashAll(urls) }.value
+            await MainActor.run { self.recordHistory("Privacy", moves: outcome.moves); self.scanPrivacy(); self.refreshStatus() }
         }
     }
 
