@@ -41,37 +41,58 @@ public struct FileInsightScanner {
         }
     }
 
-    /// File più grandi di `minBytes` OPPURE più vecchi di `olderThanDays`.
-    public func largeOrOld(minBytes: Int64 = 100 * 1024 * 1024, olderThanDays: Int = 180) -> [ScannedFile] {
-        let cutoff = Date().addingTimeInterval(-Double(olderThanDays) * 86_400)
-        var out: [ScannedFile] = []
-        for file in allFiles() {
-            let big = file.sizeBytes >= minBytes
-            let old = file.modified < cutoff && file.sizeBytes >= 5 * 1024 * 1024
-            if big || old { out.append(file) }
-        }
-        return out.sorted { $0.sizeBytes > $1.sizeBytes }
+    /// Risultato combinato di una **singola** enumerazione (grandi/vecchi + duplicati).
+    public struct Insight: Sendable {
+        public let large: [ScannedFile]
+        public let duplicates: [DuplicateGroup]
     }
 
-    /// Gruppi di duplicati: prima raggruppa per dimensione, poi conferma per hash.
-    public func duplicates() -> [DuplicateGroup] {
+    /// Analizza in **un solo passaggio** sul filesystem (evita di enumerare due volte).
+    public func analyze(minLargeBytes: Int64 = 100 * 1024 * 1024,
+                        olderThanDays: Int = 180,
+                        minDuplicateBytes: Int64 = 1 * 1024 * 1024) -> Insight {
+        let files = allFiles()
+        return Insight(
+            large: largeOrOld(in: files, minBytes: minLargeBytes, olderThanDays: olderThanDays),
+            duplicates: duplicates(in: files, minBytes: minDuplicateBytes)
+        )
+    }
+
+    /// File più grandi di `minBytes` OPPURE più vecchi di `olderThanDays`.
+    public func largeOrOld(minBytes: Int64 = 100 * 1024 * 1024, olderThanDays: Int = 180) -> [ScannedFile] {
+        largeOrOld(in: allFiles(), minBytes: minBytes, olderThanDays: olderThanDays)
+    }
+
+    /// Gruppi di duplicati (soglia minima di dimensione per ridurre rumore e lavoro).
+    public func duplicates(minBytes: Int64 = 0) -> [DuplicateGroup] {
+        duplicates(in: allFiles(), minBytes: minBytes)
+    }
+
+    // MARK: - Implementazioni su una lista già enumerata
+
+    private func largeOrOld(in files: [ScannedFile], minBytes: Int64, olderThanDays: Int) -> [ScannedFile] {
+        let cutoff = Date().addingTimeInterval(-Double(olderThanDays) * 86_400)
+        return files.filter { f in
+            (f.sizeBytes >= minBytes) || (f.modified < cutoff && f.sizeBytes >= 5 * 1024 * 1024)
+        }.sorted { $0.sizeBytes > $1.sizeBytes }
+    }
+
+    private func duplicates(in files: [ScannedFile], minBytes: Int64) -> [DuplicateGroup] {
+        let maxHashBytes: Int64 = 2 * 1024 * 1024 * 1024   // non leggere file enormi
         var bySize: [Int64: [ScannedFile]] = [:]
-        for f in allFiles() where f.sizeBytes > 0 {
+        for f in files where f.sizeBytes >= minBytes && f.sizeBytes <= maxHashBytes {
             bySize[f.sizeBytes, default: []].append(f)
         }
-        // Limite di performance: non calcolare l'hash di file enormi (lettura lenta).
-        let maxHashBytes: Int64 = 2 * 1024 * 1024 * 1024
         var groups: [DuplicateGroup] = []
-        for (size, candidates) in bySize where candidates.count > 1 && size <= maxHashBytes {
+        for (_, candidates) in bySize where candidates.count > 1 {
             var byHash: [String: [ScannedFile]] = [:]
             for f in candidates {
                 guard let h = hash(of: f.url) else { continue }
                 byHash[h, default: []].append(f)
             }
-            for (h, files) in byHash where files.count > 1 {
-                var sorted = files.sorted { $0.modified < $1.modified }
-                // Tieni il più vecchio selezionato = false; gli altri proposti per la rimozione.
-                for i in sorted.indices { sorted[i].isSelected = i > 0 }
+            for (h, dupes) in byHash where dupes.count > 1 {
+                var sorted = dupes.sorted { $0.modified < $1.modified }
+                for i in sorted.indices { sorted[i].isSelected = i > 0 }  // tieni il più vecchio
                 groups.append(DuplicateGroup(hashPrefix: String(h.prefix(12)), files: sorted))
             }
         }

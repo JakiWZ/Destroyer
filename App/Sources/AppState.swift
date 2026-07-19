@@ -483,26 +483,47 @@ final class AppState: ObservableObject {
     @Published var largeOldFiles: [ScannedFile] = []
     @Published var duplicateGroups: [DuplicateGroup] = []
     @Published var languageFiles: [LanguageFile] = []
-    @Published var isScanningSpace = false
+    /// Flag di scansione PER SEZIONE (on-demand, così non parte tutto insieme).
+    @Published var isScanningLens = false
+    @Published var isScanningFiles = false
+    @Published var isScanningLangs = false
+    @Published var didScanFiles = false
+    @Published var didScanLangs = false
     /// Radice corrente di Space Lens (navigabile).
     @Published var spaceRoot: URL = FileManager.default.homeDirectoryForCurrentUser
 
-    func scanSpace() {
-        isScanningSpace = true
-        let lens = spaceLens, insight = fileInsight, langs = languageScanner
-        let root = spaceRoot
+    /// Space Lens: mappa del disco della radice corrente.
+    func scanSpaceLens() {
+        isScanningLens = true
+        let lens = spaceLens, root = spaceRoot
         Task {
             let entries = await Task.detached { lens.breakdown(of: root) }.value
-            let large = await Task.detached { insight.largeOrOld() }.value
-            let dups = await Task.detached { insight.duplicates() }.value
-            let langFiles = await Task.detached { langs.scan() }.value
+            await MainActor.run { self.spaceEntries = entries; self.isScanningLens = false }
+        }
+    }
+
+    /// File grandi/vecchi + duplicati in un'UNICA enumerazione.
+    func scanFilesInsight() {
+        isScanningFiles = true
+        let insight = fileInsight
+        Task {
+            let r = await Task.detached { insight.analyze() }.value
             await MainActor.run {
-                self.spaceEntries = entries
-                self.largeOldFiles = large
-                self.duplicateGroups = dups
-                self.languageFiles = langFiles
-                self.isScanningSpace = false
+                self.largeOldFiles = r.large
+                self.duplicateGroups = r.duplicates
+                self.isScanningFiles = false
+                self.didScanFiles = true
             }
+        }
+    }
+
+    /// File di lingua inutilizzati nelle app.
+    func scanLanguages() {
+        isScanningLangs = true
+        let langs = languageScanner
+        Task {
+            let files = await Task.detached { langs.scan() }.value
+            await MainActor.run { self.languageFiles = files; self.isScanningLangs = false; self.didScanLangs = true }
         }
     }
 
@@ -558,7 +579,7 @@ final class AppState: ObservableObject {
         let trash = self.trash
         Task {
             let outcome = await Task.detached { trash.trashAll(urls) }.value
-            await MainActor.run { self.recordHistory("Spazio", moves: outcome.moves); self.scanSpace(); self.refreshStatus() }
+            await MainActor.run { self.recordHistory("Spazio", moves: outcome.moves); self.scanFilesInsight(); self.scanLanguages(); self.refreshStatus() }
         }
     }
 

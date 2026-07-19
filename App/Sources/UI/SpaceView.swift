@@ -7,27 +7,66 @@ struct SpaceView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 header
-                if appState.isScanningSpace {
-                    HStack(spacing: 8) { ProgressView().controlSize(.small); Text("Analisi dello spazio…").foregroundStyle(Theme.textSecondary) }
-                        .frame(maxWidth: .infinity).padding(.vertical, 40)
-                } else {
-                    spaceLens
-                    largeOld
-                    duplicates
-                    similarPhotos
-                    languageFiles
-                    universalBinaries
-                    if selectedBytes > 0 { footer }
-                }
+                spaceLens
+                filesSection
+                photosSection
+                languagesSection
+                fatSection
+                if selectedBytes > 0 { footer }
             }
             .padding(28)
         }
         .techGridBackground()
-        .onAppear {
-            if appState.spaceEntries.isEmpty { appState.scanSpace() }
-            if appState.fatBinaries.isEmpty { appState.scanFatBinaries() }
-            if appState.photoGroups.isEmpty { appState.scanPhotos() }
+        .onAppear { if appState.spaceEntries.isEmpty && !appState.isScanningLens { appState.scanSpaceLens() } }
+    }
+
+    /// Intestazione di una sezione on-demand: pulsante "Analizza" o spinner.
+    @ViewBuilder
+    private func analyzeGate(tag: String, scanning: Bool, done: Bool, empty: Bool, action: @escaping () -> Void) -> some View {
+        if scanning {
+            HStack(spacing: 8) { TechTag(text: tag); ProgressView().controlSize(.small); Text("Analisi…").font(.caption).foregroundStyle(Theme.textSecondary) }
+        } else if !done && empty {
+            HStack { TechTag(text: tag); Spacer(); GhostButton(title: "Analizza", systemImage: "magnifyingglass", action: action) }
+        } else if done && empty {
+            HStack { TechTag(text: tag); Spacer(); Text("nessun risultato").font(Theme.mono(9)).foregroundStyle(Theme.textTertiary) }
         }
+    }
+
+    @ViewBuilder
+    private var filesSection: some View {
+        analyzeGate(tag: "large, old & duplicates", scanning: appState.isScanningFiles,
+                    done: appState.didScanFiles, empty: appState.largeOldFiles.isEmpty && appState.duplicateGroups.isEmpty) {
+            appState.scanFilesInsight()
+        }
+        largeOld
+        duplicates
+    }
+
+    @ViewBuilder
+    private var photosSection: some View {
+        analyzeGate(tag: "similar photos", scanning: appState.isScanningPhotos,
+                    done: !appState.photoGroups.isEmpty || appState.isScanningPhotos, empty: appState.photoGroups.isEmpty) {
+            appState.scanPhotos()
+        }
+        similarPhotos
+    }
+
+    @ViewBuilder
+    private var languagesSection: some View {
+        analyzeGate(tag: "language files", scanning: appState.isScanningLangs,
+                    done: appState.didScanLangs, empty: appState.languageFiles.isEmpty) {
+            appState.scanLanguages()
+        }
+        languageFiles
+    }
+
+    @ViewBuilder
+    private var fatSection: some View {
+        analyzeGate(tag: "universal binaries", scanning: false,
+                    done: !appState.fatBinaries.isEmpty, empty: appState.fatBinaries.isEmpty) {
+            appState.scanFatBinaries()
+        }
+        universalBinaries
     }
 
     private var header: some View {
@@ -106,13 +145,12 @@ struct SpaceView: View {
         }
     }
 
-    // MARK: - File grandi/vecchi
+    // MARK: - File grandi/vecchi (l'header/analizza è gestito dal gate)
+    @ViewBuilder
     private var largeOld: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            TechTag(text: "large & old files")
-            if appState.largeOldFiles.isEmpty {
-                Text("Nessun file grande o vecchio.").font(.caption).foregroundStyle(Theme.textTertiary)
-            } else {
+        if !appState.largeOldFiles.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                TechTag(text: "large & old files")
                 VStack(spacing: 0) {
                     ForEach(appState.largeOldFiles.prefix(20)) { f in
                         fileRow(selected: f.isSelected, name: f.url.lastPathComponent,
@@ -126,12 +164,11 @@ struct SpaceView: View {
     }
 
     // MARK: - Duplicati
+    @ViewBuilder
     private var duplicates: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            TechTag(text: "duplicates")
-            if appState.duplicateGroups.isEmpty {
-                Text("Nessun duplicato trovato.").font(.caption).foregroundStyle(Theme.textTertiary)
-            } else {
+        if !appState.duplicateGroups.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                TechTag(text: "duplicates")
                 ForEach(appState.duplicateGroups.prefix(15)) { g in
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
