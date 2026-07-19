@@ -614,6 +614,25 @@ final class AppState: ObservableObject {
     @Published var smartResult: SmartResult?
     @Published var isSmartScanning = false
 
+    // Trend di salute (storico dei punteggi Smart Scan).
+    struct ScorePoint: Codable, Identifiable { var id = UUID(); let date: Date; let score: Int; let junkBytes: Int64 }
+    @Published var healthHistory: [ScorePoint] = {
+        guard let data = UserDefaults.standard.data(forKey: "health.history"),
+              let h = try? JSONDecoder().decode([ScorePoint].self, from: data) else { return [] }
+        return h
+    }()
+    private func recordHealth(_ score: Int, junk: Int64) {
+        healthHistory.append(ScorePoint(date: Date(), score: score, junkBytes: junk))
+        if healthHistory.count > 60 { healthHistory = Array(healthHistory.suffix(60)) }
+        if let data = try? JSONEncoder().encode(healthHistory) { UserDefaults.standard.set(data, forKey: "health.history") }
+    }
+
+    // Onboarding + accento.
+    @Published var showOnboarding = !UserDefaults.standard.bool(forKey: "onboarding.done")
+    @Published var accentPreset: Int = Theme.accentPreset
+    func setAccent(_ i: Int) { Theme.accentPreset = i; accentPreset = i; objectWillChange.send() }
+    func finishOnboarding() { UserDefaults.standard.set(true, forKey: "onboarding.done"); showOnboarding = false }
+
     func smartScan() {
         isSmartScanning = true
         smartResult = nil
@@ -639,6 +658,7 @@ final class AppState: ObservableObject {
                 self.findings = threats
                 self.loginItems = startups
                 self.isSmartScanning = false
+                self.recordHealth(score, junk: junkBytes)
             }
         }
     }

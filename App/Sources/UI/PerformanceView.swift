@@ -83,13 +83,21 @@ struct PerformanceView: View {
                 Text(item.programPath ?? item.plistURL.path).font(Theme.mono(9)).foregroundStyle(Theme.textTertiary).lineLimit(1)
             }
             Spacer()
-            if item.runAtLoad {
-                Text("RUN AT LOAD").font(Theme.mono(8, weight: .bold)).foregroundStyle(Theme.textSecondary)
-                    .padding(.horizontal, 6).padding(.vertical, 3)
-                    .background(Capsule().fill(Theme.strokeStrong))
-            }
+            Text("IMPATTO \(item.impact.label.uppercased())")
+                .font(Theme.mono(8, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 6).padding(.vertical, 3)
+                .background(Capsule().fill(impactColor(item.impact)))
             GhostButton(title: "Rimuovi", systemImage: "trash") { appState.removeLoginItem(item) }
         }
         .card(padding: 14)
+    }
+
+    private func impactColor(_ i: LoginItem.Impact) -> Color {
+        switch i {
+        case .high: return Theme.danger
+        case .medium: return Theme.warning
+        case .low: return Theme.textTertiary
+        }
     }
 }

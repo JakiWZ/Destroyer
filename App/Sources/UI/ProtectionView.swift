@@ -125,6 +125,10 @@ struct ProtectionView: View {
         .padding(16).frame(width: 340)
     }
 
+    private func accentPresetColor(_ i: Int) -> Color {
+        [Color(hex: 0xFF4B57), Color(hex: 0x3AA0FF), Color(hex: 0x22C7A9), Color(hex: 0xFF4B4B)][i]
+    }
+
     private func addExclusion() {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
@@ -141,6 +145,19 @@ struct ProtectionView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Impostazioni Protezione")
                 .font(.title3.weight(.bold)).foregroundStyle(Theme.textPrimary)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Accento").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+                HStack(spacing: 12) {
+                    ForEach(0..<Theme.presetNames.count, id: \.self) { i in
+                        Button { appState.setAccent(i) } label: {
+                            Circle().fill(accentPresetColor(i)).frame(width: 26, height: 26)
+                                .overlay(Circle().strokeBorder(.white, lineWidth: appState.accentPreset == i ? 2 : 0))
+                        }.buttonStyle(.plain)
+                    }
+                }
+            }
+            Divider().overlay(Theme.stroke)
 
             Toggle(isOn: Binding(get: { appState.realtimeEnabled }, set: { appState.setRealtime($0) })) {
                 VStack(alignment: .leading) {

@@ -16,6 +16,9 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: appState.hasFullDiskAccess)
+        .sheet(isPresented: Binding(get: { appState.showOnboarding }, set: { appState.showOnboarding = $0 })) {
+            OnboardingView()
+        }
         .overlay(alignment: .bottom) {
             if let app = appState.trashedAppSuggestion {
                 trashSuggestionToast(app)

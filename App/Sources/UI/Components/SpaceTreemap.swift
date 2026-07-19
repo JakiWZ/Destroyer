@@ -35,6 +35,7 @@ struct SpaceTreemap: View {
             }
             .frame(width: max(1, rect.width), height: max(1, rect.height))
             .offset(x: rect.minX, y: rect.minY)
+            .help("\(entry.name) — \(ByteSize.string(entry.sizeBytes))")
             .onTapGesture { onSelect(entry) }
     }
 

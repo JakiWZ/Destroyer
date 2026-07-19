@@ -2,19 +2,29 @@ import Foundation
 
 /// Un elemento che parte automaticamente (LaunchAgent/Daemon).
 public struct LoginItem: Identifiable, Sendable {
+    /// Impatto stimato sull'avvio/risorse.
+    public enum Impact: Int, Sendable { case low = 0, medium, high
+        public var label: String { self == .high ? "Alto" : (self == .medium ? "Medio" : "Basso") }
+    }
+
     public var id: URL { plistURL }
     public let label: String
     public let plistURL: URL
     public let programPath: String?
     public let runAtLoad: Bool
+    public let keepAlive: Bool
     public let isSystem: Bool
+    public let impact: Impact
 
-    public init(label: String, plistURL: URL, programPath: String?, runAtLoad: Bool, isSystem: Bool) {
+    public init(label: String, plistURL: URL, programPath: String?, runAtLoad: Bool,
+                keepAlive: Bool, isSystem: Bool, impact: Impact) {
         self.label = label
         self.plistURL = plistURL
         self.programPath = programPath
         self.runAtLoad = runAtLoad
+        self.keepAlive = keepAlive
         self.isSystem = isSystem
+        self.impact = impact
     }
 }
 
@@ -46,8 +56,14 @@ public struct LoginItemsScanner {
                 let label = (dict["Label"] as? String) ?? plist.deletingPathExtension().lastPathComponent
                 let program = (dict["Program"] as? String) ?? (dict["ProgramArguments"] as? [String])?.first
                 let runAtLoad = (dict["RunAtLoad"] as? Bool) ?? false
+                let keepAlive: Bool = {
+                    if let b = dict["KeepAlive"] as? Bool { return b }
+                    return dict["KeepAlive"] != nil   // dizionario di condizioni = mantiene vivo
+                }()
+                // Impatto: sempre-attivo (RunAtLoad+KeepAlive) = alto; solo avvio = medio; on-demand = basso.
+                let impact: LoginItem.Impact = (runAtLoad && keepAlive) ? .high : (runAtLoad ? .medium : .low)
                 items.append(LoginItem(label: label, plistURL: plist, programPath: program,
-                                       runAtLoad: runAtLoad, isSystem: system))
+                                       runAtLoad: runAtLoad, keepAlive: keepAlive, isSystem: system, impact: impact))
             }
         }
         return items.sorted { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending }

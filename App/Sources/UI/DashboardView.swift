@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 
 struct DashboardView: View {
     @EnvironmentObject var appState: AppState
@@ -8,6 +9,7 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 24) {
                 header
                 smartScanCard
+                if appState.healthHistory.count > 1 { trendCard }
                 heroCard
                 statRow
             }
@@ -42,6 +44,23 @@ struct DashboardView: View {
         if panel.runModal() == .OK, let url = panel.url {
             appState.exportReport(to: url)
         }
+    }
+
+    private var trendCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TechTag(text: "health trend")
+            Chart(appState.healthHistory) { p in
+                LineMark(x: .value("Data", p.date), y: .value("Salute", p.score))
+                    .foregroundStyle(Theme.accentGradient)
+                    .interpolationMethod(.catmullRom)
+                AreaMark(x: .value("Data", p.date), y: .value("Salute", p.score))
+                    .foregroundStyle(Theme.accentSolid.opacity(0.12))
+                    .interpolationMethod(.catmullRom)
+            }
+            .chartYScale(domain: 0...100)
+            .frame(height: 120)
+        }
+        .card(padding: 18)
     }
 
     private var smartScanCard: some View {

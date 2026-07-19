@@ -16,23 +16,36 @@ enum Theme {
     static let textSecondary = Color.white.opacity(0.62)
     static let textTertiary  = Color.white.opacity(0.38)
 
-    // MARK: - Accento
-    static let accentStart = Color(hex: 0xFF2D78)   // magenta
-    static let accentMid   = Color(hex: 0xFF5A3C)   // rosso-arancio
-    static let accentEnd   = Color(hex: 0xFF9A2E)   // arancio
-    static let accentSolid = Color(hex: 0xFF4B57)
+    // MARK: - Accento (configurabile tramite preset)
+    /// Preset selezionato (0 = Neon, 1 = Ciano/Viola, 2 = Verde/Teal, 3 = Rosso fuoco).
+    static var accentPreset: Int {
+        get { UserDefaults.standard.integer(forKey: "theme.accent") }
+        set { UserDefaults.standard.set(newValue, forKey: "theme.accent") }
+    }
 
-    static let accentGradient = LinearGradient(
-        colors: [accentStart, accentMid, accentEnd],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    private static let presets: [(UInt, UInt, UInt, UInt)] = [
+        (0xFF2D78, 0xFF5A3C, 0xFF9A2E, 0xFF4B57),   // 0 Neon Destroyer
+        (0x00E0FF, 0x4AA8FF, 0x6A5CFF, 0x3AA0FF),   // 1 Ciano → Viola
+        (0x3EE59A, 0x22C7A9, 0x12B0C7, 0x22C7A9),   // 2 Verde → Teal
+        (0xFF3B3B, 0xFF5A3C, 0xFF8A2E, 0xFF4B4B)    // 3 Rosso fuoco
+    ]
+    private static var p: (UInt, UInt, UInt, UInt) { presets[min(max(accentPreset, 0), presets.count - 1)] }
+
+    static var accentStart: Color { Color(hex: p.0) }
+    static var accentMid:   Color { Color(hex: p.1) }
+    static var accentEnd:   Color { Color(hex: p.2) }
+    static var accentSolid: Color { Color(hex: p.3) }
+
+    static var accentGradient: LinearGradient {
+        LinearGradient(colors: [accentStart, accentMid, accentEnd], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
 
     /// Gradiente angolare per gli anelli (gauge).
-    static let ringGradient = AngularGradient(
-        colors: [accentStart, accentMid, accentEnd, accentStart],
-        center: .center
-    )
+    static var ringGradient: AngularGradient {
+        AngularGradient(colors: [accentStart, accentMid, accentEnd, accentStart], center: .center)
+    }
+
+    static let presetNames = ["Neon", "Ciano/Viola", "Verde/Teal", "Rosso fuoco"]
 
     // MARK: - Semantici (stato)
     static let ok      = Color(hex: 0x3ED598)
