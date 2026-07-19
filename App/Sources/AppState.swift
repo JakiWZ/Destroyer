@@ -885,7 +885,7 @@ final class AppState: ObservableObject {
     @Published var updateResult: UpdateChecker.Result?
     @Published var isCheckingUpdate = false
     /// Imposta qui il tuo repo GitHub "owner/repo" per abilitare il controllo aggiornamenti.
-    static let githubRepo = ""
+    static let githubRepo = "JakiWZ/Destroyer"
     static let appVersion = "0.1.0"
 
     func checkForUpdates() {
