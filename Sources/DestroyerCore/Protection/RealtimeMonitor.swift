@@ -10,6 +10,8 @@ public final class RealtimeMonitor: @unchecked Sendable {
     private var sources: [DispatchSourceFileSystemObject] = []
     private var fds: [Int32] = []
     private var known: [String: Set<String>] = [:]
+    /// Coda SERIALE: serializza gli handler dei vari watcher → nessun data race su `known`.
+    private let queue = DispatchQueue(label: "io.github.destroyer.realtime")
 
     /// Chiamata (su main) quando un file appena comparso risulta sospetto.
     public var onThreat: ((ThreatFinding) -> Void)?
@@ -32,7 +34,7 @@ public final class RealtimeMonitor: @unchecked Sendable {
             let fd = open(dir.path, O_EVTONLY)
             guard fd >= 0 else { continue }
             let src = DispatchSource.makeFileSystemObjectSource(
-                fileDescriptor: fd, eventMask: .write, queue: .global())
+                fileDescriptor: fd, eventMask: .write, queue: queue)
             src.setEventHandler { [weak self] in self?.handleChange(dir) }
             let capturedFd = fd
             src.setCancelHandler { close(capturedFd) }

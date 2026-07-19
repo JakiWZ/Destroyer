@@ -187,6 +187,31 @@ check(dups.first?.files.filter { $0.isSelected }.count == 1, "propone la rimozio
 let te = TrashEmptier(home: spaceHome)
 check(te.size() >= 0, "dimensione Cestino leggibile")
 
+// MARK: - Undo / ripristino
+section("TrashService.undo — ripristino")
+let undoDir = fm.temporaryDirectory.appendingPathComponent("dz-undo-\(UUID().uuidString)", isDirectory: true)
+mkdir(undoDir)
+defer { try? fm.removeItem(at: undoDir) }
+let orig = undoDir.appendingPathComponent("orig.txt")
+let inTrash = undoDir.appendingPathComponent("intrash.txt")
+writeFile(inTrash, "contenuto")
+let restored = TrashService().undo([RemovalOutcome.Move(original: orig, inTrash: inTrash)])
+check(restored == 1, "ripristina 1 elemento")
+check(fm.fileExists(atPath: orig.path), "il file è tornato alla posizione originale")
+check(!fm.fileExists(atPath: inTrash.path), "non è più nella posizione 'Cestino'")
+// Non deve sovrascrivere se l'originale esiste già.
+writeFile(orig, "già presente"); writeFile(inTrash, "x")
+check(TrashService().undo([RemovalOutcome.Move(original: orig, inTrash: inTrash)]) == 0, "non ripristina se l'originale esiste già")
+
+// MARK: - FileHasher
+section("FileHasher — SHA-256")
+let hf = FileHasher()
+let fa = undoDir.appendingPathComponent("a"); writeFile(fa, "identico")
+let fb = undoDir.appendingPathComponent("b"); writeFile(fb, "identico")
+let fc = undoDir.appendingPathComponent("c"); writeFile(fc, "diverso")
+check(hf.sha256Hex(of: fa) == hf.sha256Hex(of: fb), "stesso contenuto → stesso hash")
+check(hf.sha256Hex(of: fa) != hf.sha256Hex(of: fc), "contenuto diverso → hash diverso")
+
 // MARK: - QA dal vivo (invarianti di sicurezza sugli scanner reali)
 failures += runLiveQA()
 

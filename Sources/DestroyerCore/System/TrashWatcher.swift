@@ -25,7 +25,8 @@ public final class TrashWatcher: @unchecked Sendable {
         fd = open(trashURL.path, O_EVTONLY)
         guard fd >= 0 else { return }
         let src = DispatchSource.makeFileSystemObjectSource(
-            fileDescriptor: fd, eventMask: .write, queue: .global()
+            fileDescriptor: fd, eventMask: .write,
+            queue: DispatchQueue(label: "io.github.destroyer.trashwatch")
         )
         src.setEventHandler { [weak self] in self?.handleChange() }
         src.setCancelHandler { [weak self] in
