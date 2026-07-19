@@ -284,9 +284,10 @@ struct SpaceView: View {
     }
 
     private var selectedBytes: Int64 {
-        appState.largeOldFiles.filter(\.isSelected).reduce(0) { $0 + $1.sizeBytes }
-            + appState.duplicateGroups.flatMap { $0.files }.filter(\.isSelected).reduce(0) { $0 + $1.sizeBytes }
-            + appState.languageFiles.filter(\.isSelected).reduce(0) { $0 + $1.sizeBytes }
+        let large: Int64 = appState.largeOldFiles.filter(\.isSelected).reduce(0) { $0 + $1.sizeBytes }
+        let dupes: Int64 = appState.duplicateGroups.flatMap { $0.files }.filter(\.isSelected).reduce(0) { $0 + $1.sizeBytes }
+        let langs: Int64 = appState.languageFiles.filter(\.isSelected).reduce(0) { $0 + $1.sizeBytes }
+        return large + dupes + langs
     }
 
     private var footer: some View {
