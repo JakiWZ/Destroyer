@@ -8,7 +8,7 @@ on:
 jobs:
   verify:
     name: Verifica core (destroyer-verify)
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
@@ -20,9 +20,16 @@ jobs:
 
   build:
     name: Build GUI (Xcode)
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+
+      # Il progetto è generato con un Xcode recente (formato 77): serve Xcode 16+.
+      - name: Seleziona Xcode più recente
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1 || echo /Applications/Xcode.app)"
+
+      - name: Versione Xcode
+        run: xcodebuild -version
 
       - name: Installa XcodeGen
         run: brew install xcodegen
