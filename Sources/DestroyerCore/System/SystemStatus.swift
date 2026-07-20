@@ -102,9 +102,46 @@ public struct SystemStatus {
 
     // MARK: - Cestino
 
+    /// Cache condivisa della dimensione del Cestino: enumerarlo è l'operazione più
+    /// costosa dello snapshot, e il Monitor la richiede ogni 2 s. Riusiamo il valore
+    /// per un breve TTL così i tick frequenti non rifanno la scansione ricorsiva.
+    private static let trashCache = TrashSizeCache()
+
     private func trashSize() -> Int64 {
         let trash = fileManager.homeDirectoryForCurrentUser
             .appendingPathComponent(".Trash", isDirectory: true)
-        return scanner.size(of: trash)
+        return Self.trashCache.value(ttl: 15) { scanner.size(of: trash) }
+    }
+
+    /// Forza il ricalcolo della dimensione del Cestino al prossimo snapshot
+    /// (es. subito dopo aver svuotato il Cestino).
+    public static func invalidateTrashCache() { trashCache.invalidate() }
+}
+
+/// Piccola cache thread-safe con TTL per la dimensione del Cestino.
+private final class TrashSizeCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cached: Int64 = 0
+    private var timestamp: Date = .distantPast
+
+    func value(ttl: TimeInterval, compute: () -> Int64) -> Int64 {
+        lock.lock()
+        if Date().timeIntervalSince(timestamp) < ttl {
+            defer { lock.unlock() }
+            return cached
+        }
+        lock.unlock()
+        let fresh = compute()
+        lock.lock()
+        cached = fresh
+        timestamp = Date()
+        lock.unlock()
+        return fresh
+    }
+
+    func invalidate() {
+        lock.lock()
+        timestamp = .distantPast
+        lock.unlock()
     }
 }

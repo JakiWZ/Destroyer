@@ -278,14 +278,16 @@ final class AppState: ObservableObject {
 
     func refreshStatus() {
         Task {
-            let snap = status.snapshot()
+            // Fuori dal main thread: snapshot() enumera il Cestino (può essere lento).
+            let snap = await Task.detached(priority: .userInitiated) { SystemStatus().snapshot() }.value
             await MainActor.run { self.snapshot = snap }
         }
     }
 
     func loadInstalledApps() {
         Task {
-            let apps = discovery.installedApps()
+            // Fuori dal main thread: enumera /Applications e ~/Applications.
+            let apps = await Task.detached(priority: .userInitiated) { AppDiscovery().installedApps() }.value
             await MainActor.run { self.installedApps = apps }
         }
     }
@@ -293,9 +295,13 @@ final class AppState: ObservableObject {
     func scanApp(at bundleURL: URL) {
         isScanning = true
         lastOutcome = nil
+        let coordinator = self.coordinator
         Task {
-            let result = coordinator.scan(bundleURL: bundleURL)
-            let running = result.map { coordinator.isAppRunning($0.app) } ?? false
+            // Fuori dal main thread: la scansione dei residui tocca il filesystem.
+            let (result, running) = await Task.detached(priority: .userInitiated) { () -> (UninstallCoordinator.ScanResult?, Bool) in
+                let r = coordinator.scan(bundleURL: bundleURL)
+                return (r, r.map { coordinator.isAppRunning($0.app) } ?? false)
+            }.value
             await MainActor.run {
                 self.scan = result
                 self.scanAppRunning = running
@@ -621,6 +627,7 @@ final class AppState: ObservableObject {
         let emptier = trashEmptier
         Task {
             let n = await Task.detached { emptier.empty() }.value
+            SystemStatus.invalidateTrashCache()   // il Cestino è cambiato: ricalcola subito
             await MainActor.run { self.emptiedCount = n; self.refreshStatus() }
         }
     }
