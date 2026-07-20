@@ -18,7 +18,9 @@ struct DestroyerApp: App {
     @StateObject private var appState = AppState()
 
     var body: some Scene {
-        WindowGroup {
+        // Finestra unica (non un WindowGroup): impedisce che ogni app trascinata
+        // sull'icona del Dock apra una nuova finestra duplicata.
+        Window("Destroyer", id: "main") {
             RootView()
                 .environmentObject(appState)
                 .frame(minWidth: 820, minHeight: 560)
