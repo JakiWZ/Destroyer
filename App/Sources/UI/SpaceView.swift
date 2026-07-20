@@ -128,27 +128,16 @@ struct SpaceView: View {
         .card(padding: 16)
     }
 
-    /// Percorso cliccabile: ogni segmento riporta a quel livello.
+    /// Percorso corrente come testo semplice su una riga.
+    /// NB: NON usare qui un breadcrumb a segmenti cliccabili (HStack/ForEach/Button)
+    /// né testo composito: dentro la ScrollView verticale scatena un loop di layout
+    /// infinito (ScrollView↔FlexFrame↔Stack) che blocca l'app. La navigazione
+    /// "indietro" è affidata al pulsante Indietro qui sopra.
     private var breadcrumb: some View {
-        let crumbs = appState.spaceBreadcrumb
-        return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
-                ForEach(Array(crumbs.enumerated()), id: \.offset) { idx, crumb in
-                    if idx > 0 {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 7)).foregroundStyle(Theme.textTertiary)
-                    }
-                    Button { appState.spaceNavigate(to: crumb.url) } label: {
-                        Text(crumb.name)
-                            .font(Theme.mono(10, weight: idx == crumbs.count - 1 ? .bold : .regular))
-                            .foregroundStyle(idx == crumbs.count - 1 ? Theme.textPrimary : Theme.accentSolid)
-                            .lineLimit(1)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(idx == crumbs.count - 1)
-                }
-            }
-        }
+        Text(appState.spaceRoot.path)
+            .font(Theme.mono(9))
+            .foregroundStyle(Theme.textTertiary)
+            .lineLimit(1)
     }
 
     // MARK: - File di lingua
