@@ -21,6 +21,15 @@ targets:
       - path: Sources/DestroyerCore   # core compilato nello stesso modulo dell'app
     info:
       path: App/Info.plist
+      properties:
+        # Permette di trascinare un'app sull'icona del Dock per aprirne il disinstallatore
+        # (Viewer + LSHandlerRank None = accetta i drop senza reclamare l'apertura predefinita).
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Application
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: None
+            LSItemContentTypes:
+              - com.apple.application-bundle
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.destroyer.Destroyer
