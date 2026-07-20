@@ -46,6 +46,9 @@ enum AppSection: String, CaseIterable, Identifiable {
 /// Stato radice dell'app: sezione selezionata, stato sistema e scansione corrente.
 @MainActor
 final class AppState: ObservableObject {
+    /// Istanza corrente, usata dall'AppDelegate per gestire le app trascinate sull'icona del Dock.
+    static weak var shared: AppState?
+
     @Published var section: AppSection = .dashboard
     @Published var scan: UninstallCoordinator.ScanResult?
     @Published var isScanning = false
@@ -292,6 +295,10 @@ final class AppState: ObservableObject {
         }
     }
 
+    init() {
+        AppState.shared = self
+    }
+
     func scanApp(at bundleURL: URL) {
         isScanning = true
         lastOutcome = nil
@@ -311,6 +318,15 @@ final class AppState: ObservableObject {
     }
 
     func scan(app: InstalledApp) { scanApp(at: app.bundleURL) }
+
+    /// Gestisce un'app trascinata sull'icona del Dock (o "Apri con Destroyer"):
+    /// porta l'app in primo piano, va alla sezione Applicazioni e avvia subito la scansione dei residui.
+    func openDroppedApp(at url: URL) {
+        guard url.pathExtension == "app" else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        section = .applications
+        scanApp(at: url)
+    }
 
     func toggle(_ item: LeftoverItem) {
         guard var current = scan,
