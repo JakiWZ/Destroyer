@@ -6,6 +6,7 @@ struct SidebarItem: View {
     let title: String
     let isSelected: Bool
     var isAvailable: Bool = true
+    var collapsed: Bool = false
     let action: () -> Void
 
     @State private var hovering = false
@@ -17,19 +18,22 @@ struct SidebarItem: View {
                     .font(.system(size: 15, weight: .medium))
                     .frame(width: 22)
                     .foregroundStyle(iconColor)
-                Text(title)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? Theme.textPrimary : Theme.textSecondary)
-                Spacer()
-                if !isAvailable {
-                    Text("presto")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(Theme.textTertiary)
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Capsule().fill(Theme.strokeStrong))
+                    .frame(maxWidth: collapsed ? .infinity : nil)
+                if !collapsed {
+                    Text(title)
+                        .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                        .foregroundStyle(isSelected ? Theme.textPrimary : Theme.textSecondary)
+                    Spacer()
+                    if !isAvailable {
+                        Text("presto")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(Theme.textTertiary)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Capsule().fill(Theme.strokeStrong))
+                    }
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, collapsed ? 8 : 12)
             .padding(.vertical, 9)
             .background(
                 RoundedRectangle(cornerRadius: Theme.cornerSmall, style: .continuous)
@@ -42,6 +46,7 @@ struct SidebarItem: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
+        .help(collapsed ? title : "")
         .accessibilityLabel(title)
         .accessibilityHint(isAvailable ? "" : "Modulo non ancora disponibile")
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)

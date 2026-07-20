@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject var appState: AppState
+    @AppStorage("sidebar.collapsed") private var collapsed = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -98,31 +99,59 @@ struct RootView: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 6) {
-            logo
-                .padding(.horizontal, 12)
-                .padding(.top, 20)
-                .padding(.bottom, 14)
+            HStack(spacing: 8) {
+                logo
+                if !collapsed { Spacer() }
+                if !collapsed { collapseButton }
+            }
+            .padding(.horizontal, collapsed ? 8 : 12)
+            .padding(.top, 20)
+            .padding(.bottom, 14)
+
+            if collapsed {
+                collapseButton
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 4)
+            }
 
             ForEach(AppSection.allCases) { section in
                 SidebarItem(
                     icon: section.systemImage,
                     title: section.title,
                     isSelected: appState.section == section,
-                    isAvailable: section.isAvailable
+                    isAvailable: section.isAvailable,
+                    collapsed: collapsed
                 ) {
                     if section.isAvailable { appState.section = section }
                 }
             }
             Spacer()
-            footer
-                .padding(12)
+            if !collapsed {
+                footer.padding(12)
+            }
         }
         .padding(.horizontal, 8)
-        .frame(width: 224)
+        .frame(width: collapsed ? 64 : 224)
         .background(Theme.backgroundDeep)
         .overlay(alignment: .trailing) {
             Rectangle().fill(Theme.stroke).frame(width: 1)
         }
+        .animation(.easeInOut(duration: 0.22), value: collapsed)
+    }
+
+    private var collapseButton: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.22)) { collapsed.toggle() }
+        } label: {
+            Image(systemName: collapsed ? "sidebar.left" : "sidebar.leading")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.textSecondary)
+                .frame(width: 28, height: 28)
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Theme.surface))
+        }
+        .buttonStyle(.plain)
+        .help(collapsed ? "Espandi il menù" : "Comprimi il menù")
+        .accessibilityLabel(collapsed ? "Espandi il menù laterale" : "Comprimi il menù laterale")
     }
 
     private var logo: some View {
@@ -135,13 +164,15 @@ struct RootView: View {
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(.white)
             }
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Destroyer")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(Theme.textPrimary)
-                Text("Mac utility")
-                    .font(.system(size: 10))
-                    .foregroundStyle(Theme.textTertiary)
+            if !collapsed {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Destroyer")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("Mac utility")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.textTertiary)
+                }
             }
         }
     }

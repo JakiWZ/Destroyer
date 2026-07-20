@@ -550,6 +550,27 @@ final class AppState: ObservableObject {
 
     var canSpaceGoUp: Bool { spaceRoot.path != "/" && spaceRoot.pathComponents.count > 1 }
 
+    /// Salta direttamente a una cartella antenata (dal breadcrumb).
+    func spaceNavigate(to url: URL) {
+        guard url.path != spaceRoot.path else { return }
+        spaceRoot = url
+        rescanSpaceLens()
+    }
+
+    /// Segmenti del percorso corrente (nome visibile + URL a cui saltare).
+    var spaceBreadcrumb: [(name: String, url: URL)] {
+        var out: [(String, URL)] = []
+        var url = spaceRoot
+        while true {
+            let name = url.path == "/" ? "Mac" : url.lastPathComponent
+            out.insert((name, url), at: 0)
+            let parent = url.deletingLastPathComponent()
+            if parent.path == url.path { break }   // arrivati a "/"
+            url = parent
+        }
+        return out
+    }
+
     private func rescanSpaceLens() {
         let lens = spaceLens, root = spaceRoot
         Task {

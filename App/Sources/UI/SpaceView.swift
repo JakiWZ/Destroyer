@@ -81,16 +81,23 @@ struct SpaceView: View {
     // MARK: - Space Lens (barre proporzionali, navigabile)
     private var spaceLens: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
+            HStack(spacing: 10) {
+                Button { appState.spaceUp() } label: {
+                    Label("Indietro", systemImage: "chevron.left")
+                        .font(Theme.mono(11, weight: .semibold))
+                        .padding(.horizontal, 10).padding(.vertical, 6)
+                        .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(appState.canSpaceGoUp ? Theme.surface : Theme.surface.opacity(0.4)))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(appState.canSpaceGoUp ? Theme.accentSolid : Theme.textTertiary)
+                .disabled(!appState.canSpaceGoUp)
+                .help("Torna alla cartella superiore")
+
                 TechTag(text: "space lens")
                 Spacer()
-                if appState.canSpaceGoUp {
-                    Button { appState.spaceUp() } label: {
-                        Label("Su", systemImage: "arrow.up").font(Theme.mono(10))
-                    }.buttonStyle(.plain).foregroundStyle(Theme.accentSolid)
-                }
             }
-            Text(appState.spaceRoot.path).font(Theme.mono(9)).foregroundStyle(Theme.textTertiary).lineLimit(1)
+            breadcrumb
             SpaceTreemap(entries: appState.spaceEntries) { appState.drillInto($0) }
             let total = max(1, appState.spaceEntries.reduce(0) { $0 + $1.sizeBytes })
             ForEach(appState.spaceEntries.prefix(12)) { e in
@@ -119,6 +126,29 @@ struct SpaceView: View {
             }
         }
         .card(padding: 16)
+    }
+
+    /// Percorso cliccabile: ogni segmento riporta a quel livello.
+    private var breadcrumb: some View {
+        let crumbs = appState.spaceBreadcrumb
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 4) {
+                ForEach(Array(crumbs.enumerated()), id: \.offset) { idx, crumb in
+                    if idx > 0 {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 7)).foregroundStyle(Theme.textTertiary)
+                    }
+                    Button { appState.spaceNavigate(to: crumb.url) } label: {
+                        Text(crumb.name)
+                            .font(Theme.mono(10, weight: idx == crumbs.count - 1 ? .bold : .regular))
+                            .foregroundStyle(idx == crumbs.count - 1 ? Theme.textPrimary : Theme.accentSolid)
+                            .lineLimit(1)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(idx == crumbs.count - 1)
+                }
+            }
+        }
     }
 
     // MARK: - File di lingua

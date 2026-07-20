@@ -18,12 +18,16 @@ struct StatTile: View {
                 Text(title)
                     .font(.caption)
                     .foregroundStyle(Theme.textSecondary)
-                Spacer()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                Spacer(minLength: 0)
             }
 
             Text(value)
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundStyle(Theme.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
 
             if let fraction {
                 GeometryReader { geo in

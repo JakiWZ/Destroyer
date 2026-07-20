@@ -16,14 +16,14 @@ struct MonitorView: View {
                         .foregroundStyle(Theme.textSecondary)
                 }
 
-                HStack(spacing: 20) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 20)], spacing: 20) {
                     gauge(title: "CPU", value: appState.cpuUsage)
                     gauge(title: "Memoria", value: appState.snapshot?.ramUsedFraction ?? 0)
                     gauge(title: "Disco", value: appState.snapshot?.diskUsedFraction ?? 0)
                 }
 
                 if let s = appState.snapshot {
-                    HStack(spacing: 16) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 16) {
                         StatTile(icon: "cpu", title: "CPU",
                                  value: "\(Int(appState.cpuUsage * 100))%", fraction: appState.cpuUsage)
                         StatTile(icon: "internaldrive", title: "DISCO LIBERO",
